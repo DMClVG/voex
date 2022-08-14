@@ -42,6 +42,13 @@ function GameScene:init()
     self.chunkCreationsThisFrame = 0
     self.updatedThisFrame = false
 
+    local player = {
+        position={x=-0.5, y=0.5, z=20},
+        velocity={x=0, y=0, z=0}
+    }
+
+    self.player = player
+
     lg.setMeshCullMode("back")
 end
 
@@ -100,7 +107,6 @@ function GameScene:update(dt)
     leftClick, rightClick = leftDown and not wasLeftDown, rightDown and not wasRightDown
 
     self.updatedThisFrame = true
-    g3d.camera.firstPersonMovement(dt)
 
     -- generate a "bubble" of loaded chunks around the camera
     local bubbleWidth = renderDistance
@@ -242,6 +248,100 @@ function GameScene:update(dt)
             if lz <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z-1)], true) end
         end
     end
+
+    local p = self.player
+
+    local speed = 5
+    local dirx, diry, dirz = g3d.camera.getLookVector()
+    p.velocity = {x=0,y=0,z=0}
+
+    if love.keyboard.isDown("w") then
+        p.velocity.x = dirx
+        p.velocity.y = diry
+        p.velocity.z = dirz
+    elseif love.keyboard.isDown("s") then
+        p.velocity.x = -dirx
+        p.velocity.y = diry
+        p.velocity.z = -dirz
+    end
+    
+    if love.keyboard.isDown("a") then
+        p.velocity.x = -diry
+        p.velocity.y = dirx
+    elseif love.keyboard.isDown("d") then
+        p.velocity.x = diry
+        p.velocity.y = -dirx
+    end
+
+    local nvx, nvy, nvz = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(p.velocity.x, p.velocity.y, p.velocity.z))
+    p.velocity = { x=nvx, y=nvy, z=nvz }
+
+    local epsilonx, epsilony, epsilonz = 0.0045, 0.002, 0.005
+    local vx, vy, vz = p.velocity.x, p.velocity.y, p.velocity.z
+    local x, y, z = p.position.x, p.position.y, p.position.z
+    local bx, by, bz = floor(x), floor(y), floor(z)
+    local dx, dy, dz = vx * dt, vy * dt, vz * dt
+
+    for k=bz, math.floor(z+dz), dz < 0 and -1 or 1 do
+        local chunk = self:getChunkFromWorld(bx, by, k)
+        if chunk then
+            if chunk:getBlock(bx%size,by%size,k%size) ~= 0 then
+                if dz < 0 then
+                    dz = math.min(math.max(dz, (k+1+epsilonz)-z),0)
+                else
+                    dz = math.max(math.min(dz, (k-epsilonz)-z),0)
+                end
+                p.velocity.z = 0
+                break
+            end
+        end
+    end
+
+    for i=bx, math.floor(x+dx), dx < 0 and -1 or 1 do
+        for k=bz, math.floor(z+dz), dz < 0 and -1 or 1 do
+            local chunk = self:getChunkFromWorld(i, by, k)
+            if chunk then
+                if chunk:getBlock(i%size,by%size,k%size) ~= 0 then
+                    if dx < 0 then
+                        dx = math.min(math.max(dx, (i+1+epsilonx)-x),0)
+                    else
+                        dx = math.max(math.min(dx, (i-epsilonx)-x),0)
+                    end
+                    p.velocity.x = 0
+                    break
+                end
+            end
+        end
+    end
+
+    for i=bx, math.floor(x+dx), dx < 0 and -1 or 1 do
+        for j=by, math.floor(y+dy), dy < 0 and -1 or 1 do
+            for k=bz, math.floor(z+dz), dz < 0 and -1 or 1 do
+                local chunk = self:getChunkFromWorld(i, j, k)
+                if chunk then
+                    if chunk:getBlock(i%size,j%size,k%size) ~= 0 then
+                        if dy < 0 then
+                            dy = math.min(math.max(dy, (j+1+epsilony)-y),0)
+                        else
+                            dy = math.max(math.min(dy, (j-epsilony)-y),0)
+                        end
+                        p.velocity.y = 0
+                        break
+                    end
+                end
+            end
+        end
+    end
+
+
+    p.position.x = p.position.x + dx
+    p.position.y = p.position.y + dy
+    p.position.z = p.position.z + dz
+
+    g3d.camera.position[1] = p.position.x
+    g3d.camera.position[2] = p.position.y
+    g3d.camera.position[3] = p.position.z
+    g3d.camera.lookInDirection()
 end
 
 function GameScene:mousemoved(x, y, dx, dy)
