@@ -2,7 +2,7 @@ require "love.math"
 require "love.data"
 ffi = require "ffi"
 
-channel, blockdata, n1, n2, n3, n4, n5, n6 = ...
+local channel, blockdata, tiles, tids, n1, n2, n3, n4, n5, n6 = ...
 local blockdatapointer = ffi.cast("uint8_t *", blockdata:getFFIPointer())
 local n1p = n1 and ffi.cast("uint8_t *", n1:getFFIPointer())
 local n2p = n2 and ffi.cast("uint8_t *", n2:getFFIPointer())
@@ -11,8 +11,6 @@ local n4p = n4 and ffi.cast("uint8_t *", n4:getFFIPointer())
 local n5p = n5 and ffi.cast("uint8_t *", n5:getFFIPointer())
 local n6p = n6 and ffi.cast("uint8_t *", n6:getFFIPointer())
 
-u1, v1 = 3/8, 1/8
-u2, v2 = 0, 0
 c1 = 1
 c2 = 0.75
 c3 = 0.5
@@ -104,13 +102,16 @@ if count > 0 then
     for x=0, size-1 do
         for y=0, size-1 do
             for z=0, size-1 do
-                if getBlock(blockdatapointer, x,y,z) ~= 0 then
+                local id = getBlock(blockdatapointer, x,y,z)
+                if id ~= 0 then
+                    local tile = tids[id]
+                    local u1, v1 = (tile.tex % 8) / 8, math.floor(tile.tex / 8) / 8
                     if getBlock(blockdatapointer, x-1,y,z) == 0 then addFace(x,y,z,   0,1,2, u1,v1,c2) end
                     if getBlock(blockdatapointer, x+1,y,z) == 0 then addFace(x+1,y,z, 0,1,2, u1,v1,c2) end
                     if getBlock(blockdatapointer, x,y-1,z) == 0 then addFace(x,y,z,   1,0,2, u1,v1,c1) end
                     if getBlock(blockdatapointer, x,y+1,z) == 0 then addFace(x,y+1,z, 1,0,2, u1,v1,c1) end
                     if getBlock(blockdatapointer, x,y,z-1) == 0 then addFace(x,y,z,   1,2,0, u1,v1,c3) end
-                    if getBlock(blockdatapointer, x,y,z+1) == 0 then addFace(x,y,z+1, 1,2,0, u2,v2,c1) end
+                    if getBlock(blockdatapointer, x,y,z+1) == 0 then addFace(x,y,z+1, 1,2,0, u1,v1,c1) end
                 end
             end
         end

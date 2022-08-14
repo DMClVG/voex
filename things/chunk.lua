@@ -19,9 +19,10 @@ function Chunk:new(x,y,z)
     local data = love.data.newByteData(size*size*size*ffi.sizeof("uint8_t"))
     local datapointer = ffi.cast("uint8_t *", data:getFFIPointer())
     local f = 0.125
+    local planks = tiles.planks.id
     for i=0, size*size*size - 1 do
         local x, y, z = i%size + self.x, math.floor(i/size)%size + self.y, math.floor(i/(size*size)) + self.z
-        datapointer[i] = love.math.noise(x*f,y*f,z*f) > (z+32)/64 and 1 or 0
+        datapointer[i] = love.math.noise(x*f,y*f,z*f) > (z+32)/64 and planks or 0
     end
     self.data = data
     self.datapointer = datapointer

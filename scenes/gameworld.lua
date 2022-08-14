@@ -176,7 +176,7 @@ function GameScene:update(dt)
                     neighbor = self.chunkMap[("%d/%d/%d"):format(x,y,z-1)]
                     if neighbor and not neighbor.dead then n6 = neighbor.data end
 
-                    thread:start(chunk.hash, chunk.data, n1, n2, n3, n4, n5, n6)
+                    thread:start(chunk.hash, chunk.data, tiles, tids, n1, n2, n3, n4, n5, n6)
                     threadchannels[chunk.hash] = chunk
                     break
                 end

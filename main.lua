@@ -7,6 +7,7 @@ lume = require "lib/lume"
 Object = require "lib/classic"
 scene = require "lib/scene"
 
+require "tiles"
 require "things/chunk"
 require "scenes/gameworld"
 
