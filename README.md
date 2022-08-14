@@ -1,4 +1,4 @@
-# g3d voxel
+# Vöx
 
 A simple voxel engine created using [g3d](https://github.com/groverburger/g3d) for [LÖVE](https://love2d.org).
 
