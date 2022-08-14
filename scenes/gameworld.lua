@@ -269,12 +269,15 @@ function GameScene:draw()
 
     self.updatedThisFrame = false
 
+    lg.setMeshCullMode("none")
     if blockCursorVisible then
         lg.setColor(0,0,0)
         lg.setWireframe(true)
         blockCursor:draw()
         lg.setWireframe(false)
     end
+    lg.setMeshCullMode("back")
+
 end
 
 function GameScene:getChunkFromWorld(x,y,z)
