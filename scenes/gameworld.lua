@@ -41,6 +41,8 @@ function GameScene:init()
     self.remeshQueue = {}
     self.chunkCreationsThisFrame = 0
     self.updatedThisFrame = false
+
+    lg.setMeshCullMode("back")
 end
 
 function GameScene:addThing(thing)
@@ -248,6 +250,7 @@ end
 
 function GameScene:draw()
     lg.clear(lume.color "#4488ff")
+
 
     -- draw all the things in the scene
     for _, thing in ipairs(self.thingList) do

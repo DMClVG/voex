@@ -79,8 +79,14 @@ if count > 0 then
     datapointer = ffi.cast("struct vertex *", data:getFFIPointer())
     dataindex = 0
 
-    function addFace(x,y,z, mx,my,mz, u,v, c)
-        for i=1, 6 do
+    function addFace(x,y,z, mx,my,mz, u,v, c, invert)
+        local start, stop, step
+        if invert then
+            start, stop, step = 6, 1, -1
+        else
+            start, stop, step = 1, 6, 1
+        end
+        for i=start,stop,step do
             local primary = i%2 == 1
             local secondary = i > 2 and i < 6
             datapointer[dataindex].x  = x + (mx == 1 and primary and 1 or 0) + (mx == 2 and secondary and 1 or 0)
@@ -107,11 +113,11 @@ if count > 0 then
                     local tile = tids[id]
                     local u1, v1 = (tile.tex % 8) / 8, math.floor(tile.tex / 8) / 8
                     if getBlock(blockdatapointer, x-1,y,z) == 0 then addFace(x,y,z,   0,1,2, u1,v1,c2) end
-                    if getBlock(blockdatapointer, x+1,y,z) == 0 then addFace(x+1,y,z, 0,1,2, u1,v1,c2) end
-                    if getBlock(blockdatapointer, x,y-1,z) == 0 then addFace(x,y,z,   1,0,2, u1,v1,c1) end
+                    if getBlock(blockdatapointer, x+1,y,z) == 0 then addFace(x+1,y,z, 0,1,2, u1,v1,c2, true) end
+                    if getBlock(blockdatapointer, x,y-1,z) == 0 then addFace(x,y,z,   1,0,2, u1,v1,c1, true) end
                     if getBlock(blockdatapointer, x,y+1,z) == 0 then addFace(x,y+1,z, 1,0,2, u1,v1,c1) end
                     if getBlock(blockdatapointer, x,y,z-1) == 0 then addFace(x,y,z,   1,2,0, u1,v1,c3) end
-                    if getBlock(blockdatapointer, x,y,z+1) == 0 then addFace(x,y,z+1, 1,2,0, u1,v1,c1) end
+                    if getBlock(blockdatapointer, x,y,z+1) == 0 then addFace(x,y,z+1, 1,2,0, u1,v1,c1, true) end
                 end
             end
         end
