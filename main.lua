@@ -8,7 +8,7 @@ Object = require "lib/classic"
 scene = require "lib/scene"
 
 require "things/chunk"
-require "scenes/gamescene"
+require "scenes/gameworld"
 
 function love.load(args)
     scene(GameScene())
