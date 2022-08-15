@@ -3,7 +3,7 @@ local size
 local threadpool = {}
 -- load up some threads so that chunk meshing won't block the main thread
 for i=1, 8 do
-    threadpool[i] = love.thread.newThread "lib/chunkremesh.lua"
+    threadpool[i] = love.thread.newThread "scenes/chunkremesh.lua"
 end
 local threadchannels = {}
 local texturepack = lg.newImage "assets/texturepack.png"

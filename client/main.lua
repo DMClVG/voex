@@ -4,10 +4,14 @@ lg = love.graphics
 lg.setDefaultFilter "nearest"
 io.stdout:setvbuf "no"
 
-g3d = require "lib/g3d"
+enet = require "enet"
+
+g3d = require "g3d"
 lume = require "lib/lume"
 Object = require "lib/classic"
-scene = require "lib/scene"
+scene = require "scene"
+
+local common = require "../common"
 
 require "tiles"
 require "things/chunk"
@@ -17,9 +21,24 @@ require "box"
 
 function love.load(args)
     scene(GameScene())
+
+    client = enet.host_create()
+    client:compress_with_range_coder()
+    conn = client:connect("localhost:8192")
 end
 
 function love.update(dt)
+    conn:send("yo")
+
+    local event = client:service()
+    if event then
+        print(event.type)
+        if event.type == "receive" then
+            local data = love.data.newByteData(event.data)
+            print(data:getSize())
+        end
+    end
+
     local scene = scene()
     if scene.update then
         scene:update(dt)
