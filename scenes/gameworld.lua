@@ -267,7 +267,7 @@ function GameScene:update(dt)
         p.velocity.z = dirz
     elseif love.keyboard.isDown("s") then
         p.velocity.x = -dirx
-        p.velocity.y = diry
+        p.velocity.y = -diry
         p.velocity.z = -dirz
     end
     
