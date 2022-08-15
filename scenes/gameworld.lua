@@ -238,8 +238,10 @@ function GameScene:update(dt)
         end
     end
 
+    local p = self.player
+
     -- right click to place blocks
-    if rightClick and buildx then
+    if rightClick and buildx and not boxIntersectBox({x=buildx+0.5, y=buildy+0.5, z=buildz+0.5, w=0.5, h=0.5, d=0.5}, p.box) then
         local chunk = self:getChunkFromWorld(buildx, buildy, buildz)
         local lx, ly, lz = buildx%size, buildy%size, buildz%size
         if chunk then
@@ -255,7 +257,6 @@ function GameScene:update(dt)
         end
     end
 
-    local p = self.player
 
     local speed, jumpForce = 5, 12
     local dirx, diry, dirz = g3d.camera.getLookVector()
