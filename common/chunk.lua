@@ -4,7 +4,7 @@ local ffi = require "ffi"
 Chunk = Object:extend()
 Chunk.size = size
 
-function Chunk:new(x,y,z)
+function Chunk:new(x,y,z,data)
     self.data = {}
     self.cx = x
     self.cy = y
@@ -15,17 +15,46 @@ function Chunk:new(x,y,z)
     self.hash = ("%d/%d/%d"):format(x,y,z)
     self.frames = 0
     self.inRemeshQueue = false
+    if data then
+        self.data = data
+    else
+        self.data = love.data.newByteData(size*size*size*ffi.sizeof("uint8_t"))
+    end
+    self.datapointer = ffi.cast("uint8_t *", self.data:getFFIPointer())
+end
 
-    local data = love.data.newByteData(size*size*size*ffi.sizeof("uint8_t"))
-    local datapointer = ffi.cast("uint8_t *", data:getFFIPointer())
+function fromPacket(packet)
+    local data = ffi.cast("uint8_t *", packet:getFFIPointer())
+    local ptr = 1
+    local i = 1
+    local n = ""
+    local cpos = {0, 0, 0}
+    while true do
+        if data[ptr] == string.byte('/') then
+            cpos[i] = tonumber(n)
+            n = ""
+            i = i + 1
+        elseif data[ptr] == string.byte(']') then
+            cpos[i] = tonumber(n)
+            ptr = ptr + 1
+            break
+        else
+            n = n .. string.char(data[ptr])
+        end
+        ptr = ptr + 1
+    end
+    assert(packet:getSize() - ptr == Chunk.size^3, "Chunk tile data of wrong size!")
+    return Chunk(cpos[1], cpos[2], cpos[3], love.data.newDataView(packet, ptr, packet:getSize() - ptr))
+end
+
+function Chunk:generate()
     local f = 0.125
-    local planks = tiles.planks.id
+    local planks = 2
+    local datapointer = self.datapointer
     for i=0, size*size*size - 1 do
         local x, y, z = i%size + self.x, math.floor(i/size)%size + self.y, math.floor(i/(size*size)) + self.z
         datapointer[i] = love.math.noise(x*f,y*f,z*f) > (z+32)/64 and planks or 0
     end
-    self.data = data
-    self.datapointer = datapointer
 end
 
 function Chunk:getBlock(x,y,z)
@@ -66,3 +95,5 @@ function Chunk:destroy()
     self.data:release()
     scene().chunkMap[self.hash] = nil
 end
+
+return { Chunk=Chunk, fromPacket=fromPacket}

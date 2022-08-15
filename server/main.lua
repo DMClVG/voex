@@ -13,6 +13,18 @@ function love.load(args)
     
     host = enet.host_create("localhost:8192")
     host:compress_with_range_coder()
+
+    chunks = {}
+
+    for i = -2,2 do
+        for j = -2,2 do
+            for k = -2,2 do
+                local chunk = common.chunk.Chunk(i, j, k)
+                chunk:generate()
+                table.insert(chunks, chunk)
+            end
+        end
+    end
 end
 
 function love.update(dt)
@@ -20,7 +32,9 @@ function love.update(dt)
     if event then
         print(event.type)
         if event.type == "connect" then
-            event.peer:send("Hello :)")
+            for _, chunk in ipairs(chunks) do
+                event.peer:send("["..chunk.hash.."]"..chunk.data:getString())
+            end
         end
     end
 end

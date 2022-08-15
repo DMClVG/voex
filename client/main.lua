@@ -11,10 +11,9 @@ lume = require "lib/lume"
 Object = require "lib/classic"
 scene = require "scene"
 
-local common = require "../common"
+common = require "../common"
 
 require "tiles"
-require "things/chunk"
 require "scenes/gameworld"
 require "physics"
 require "box"
@@ -28,18 +27,18 @@ function love.load(args)
 end
 
 function love.update(dt)
-    conn:send("yo")
+    local scene = scene()
 
     local event = client:service()
     if event then
         print(event.type)
         if event.type == "receive" then
-            local data = love.data.newByteData(event.data)
-            print(data:getSize())
+            local packet = love.data.newByteData(event.data)
+            local chunk = common.chunk.fromPacket(packet)
+            scene:addChunk(chunk)
         end
     end
 
-    local scene = scene()
     if scene.update then
         scene:update(dt)
     end

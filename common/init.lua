@@ -24,6 +24,13 @@ loex = {
         OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
         SOFTWARE.
     ]],
+    path=...
 }
+
+assert(love, "this package needs löve!")
+
+Object = require(loex.path .. "/classic")
+
+loex.chunk = require(loex.path .. "/chunk")
 
 return loex

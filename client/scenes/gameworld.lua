@@ -78,19 +78,22 @@ local function updateChunk(self, x, y, z)
     local hash = ("%d/%d/%d"):format(x, y, z)
     if self.chunkMap[hash] then
         self.chunkMap[hash].frames = 0
-    else
-        local chunk = Chunk(x, y, z)
-        self.chunkMap[hash] = chunk
-        self.chunkCreationsThisFrame = self.chunkCreationsThisFrame + 1
-
-        -- this chunk was just created, so update all the chunks around it
-        self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x+1,y,z)])
-        self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x-1,y,z)])
-        self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y+1,z)])
-        self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y-1,z)])
-        self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z+1)])
-        self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z-1)])
     end
+end
+
+function GameScene:addChunk(chunk)
+    print("added")
+    local x, y, z = chunk.cx, chunk.cy, chunk.cz
+    self.chunkMap[chunk.hash] = chunk
+    self.chunkCreationsThisFrame = self.chunkCreationsThisFrame + 1
+
+    -- this chunk was just created, so update all the chunks around it
+    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x+1,y,z)])
+    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x-1,y,z)])
+    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y+1,z)])
+    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y-1,z)])
+    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z+1)])
+    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z-1)])
 end
 
 function GameScene:update(dt)
