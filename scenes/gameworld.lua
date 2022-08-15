@@ -282,91 +282,16 @@ function GameScene:update(dt)
     local nvx, nvy, nvz = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(p.velocity.x, p.velocity.y, p.velocity.z))
     p.velocity = { x=nvx, y=nvy, z=nvz }
 
-    local epsilonx, epsilony, epsilonz = 0.0045, 0.002, 0.005
-    local dx, dy, dz = p.velocity.x * dt, p.velocity.y * dt, p.velocity.z * dt
+    p.velocity, _ = advanceBoxInWorld(self, p.box, p.velocity, dt)
 
-    local cbox = {w=0.5, h=0.5, d=0.5}
-    local pbox = boxExpand(lume.clone(p.box), 0, 0, dz)
-
-    for i=math.floor(pbox.x-pbox.w), math.floor(pbox.x+pbox.w), 1 do
-        for j=math.floor(pbox.y-pbox.d), math.floor(pbox.y+pbox.d), 1 do
-            for k=math.floor(pbox.z-pbox.h), math.floor(pbox.z+pbox.h), 1 do
-                local chunk = self:getChunkFromWorld(i, j, k)
-                if chunk then
-                    cbox.x = i+0.5
-                    cbox.y = j+0.5
-                    cbox.z = k+0.5
-                    if chunk:getBlock(i%size,j%size,k%size) ~= 0 and boxIntersectBox(cbox, pbox) then
-                        if dz < 0 then
-                            dz = math.min(math.max(dz, (k+1+epsilonz)-(z-p.box.h)),0)
-                        else
-                            dz = math.max(math.min(dz, (k-epsilonz)-(z+p.box.h)),0)
-                        end
-                        p.velocity.z = 0
-                    end
-                end
-            end
-        end
-    end
-
-    local pbox = boxExpand(lume.clone(p.box), dx, 0, dz)
-
-    for i=math.floor(pbox.x-pbox.w), math.floor(pbox.x+pbox.w), 1 do
-        for j=math.floor(pbox.y-pbox.d), math.floor(pbox.y+pbox.d), 1 do
-            for k=math.floor(pbox.z-pbox.h), math.floor(pbox.z+pbox.h), 1 do
-                local chunk = self:getChunkFromWorld(i, j, k)
-                if chunk then
-                    cbox.x = i+0.5
-                    cbox.y = j+0.5
-                    cbox.z = k+0.5
-                    if chunk:getBlock(i%size,j%size,k%size) ~= 0 and boxIntersectBox(cbox, pbox) then
-                        if dx < 0 then
-                            dx = math.min(math.max(dx, (i+1+epsilonx)-(x-p.box.w)),0)
-                        else
-                            dx = math.max(math.min(dx, (i-epsilonx)-(x+p.box.w)),0)
-                        end
-                        p.velocity.x = 0
-                    end
-                end
-            end
-        end
-    end
-
-    local pbox = boxExpand(lume.clone(p.box), dx, dy, dz)
-
-    for i=math.floor(pbox.x-pbox.w), math.floor(pbox.x+pbox.w), 1 do
-        for j=math.floor(pbox.y-pbox.d), math.floor(pbox.y+pbox.d), 1 do
-            for k=math.floor(pbox.z-pbox.h), math.floor(pbox.z+pbox.h), 1 do
-                local chunk = self:getChunkFromWorld(i, j, k)
-                if chunk then
-                    cbox.x = i+0.5
-                    cbox.y = j+0.5
-                    cbox.z = k+0.5
-                    if chunk:getBlock(i%size,j%size,k%size) ~= 0 and boxIntersectBox(cbox, pbox) then
-                        if dy < 0 then
-                            dy = math.min(math.max(dy, (j+1+epsilony)-(y-p.box.d)),0)
-                        else
-                            dy = math.max(math.min(dy, (j-epsilony)-(y+p.box.d)),0)
-                        end
-                        p.velocity.y = 0
-                    end
-                end
-            end
-        end
-    end
-
-    p.position.x = p.position.x + dx
-    p.position.y = p.position.y + dy
-    p.position.z = p.position.z + dz
+    p.position.x = p.box.x
+    p.position.y = p.box.y
+    p.position.z = p.box.z
 
     g3d.camera.position[1] = p.position.x
     g3d.camera.position[2] = p.position.y
     g3d.camera.position[3] = p.position.z
     g3d.camera.lookInDirection()
-
-    p.box.x = p.position.x
-    p.box.y = p.position.y
-    p.box.z = p.position.z
 end
 
 function GameScene:mousemoved(x, y, dx, dy)
@@ -438,31 +363,5 @@ function GameScene:requestRemesh(chunk, first)
         table.insert(self.remeshQueue, 1, chunk)
     else
         table.insert(self.remeshQueue, chunk)
-    end
-end
-
-function boxIntersectBox(a, b)
-    return  a.x + a.w > b.x - b.w and a.x - a.w < b.x + b.w and
-            a.y + a.d > b.y - b.d and a.y - a.d < b.y + b.d and
-            a.z + a.h > b.z - b.h and a.z - a.h < b.z + b.h
-end
-
-function boxExpand(box, ex, ey, ez)
-    local hex, hey, hez = ex/2, ey/2, ez/2
-    box.x = box.x + hex
-    box.y = box.y + hey
-    box.z = box.z + hez
-
-    box.w = box.w + math.abs(hex)
-    box.d = box.d + math.abs(hey)
-    box.h = box.h + math.abs(hez)
-    return box
-end
-
-function aToB(a, b)
-    if a < b then
-        return a, b, -1
-    else
-        return a, b, 1
     end
 end

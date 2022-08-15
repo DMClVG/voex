@@ -12,6 +12,8 @@ scene = require "lib/scene"
 require "tiles"
 require "things/chunk"
 require "scenes/gameworld"
+require "physics"
+require "box"
 
 function love.load(args)
     scene(GameScene())
