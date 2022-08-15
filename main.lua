@@ -1,3 +1,5 @@
+if arg[#arg] == "vsc_debug" then require("lldebugger").start() end
+
 lg = love.graphics
 lg.setDefaultFilter "nearest"
 io.stdout:setvbuf "no"
