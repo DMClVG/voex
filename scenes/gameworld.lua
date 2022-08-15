@@ -42,6 +42,19 @@ function GameScene:init()
     self.chunkCreationsThisFrame = 0
     self.updatedThisFrame = false
 
+    local player = {
+        position={x=-0.5, y=0.5, z=20},
+        velocity={x=0, y=0, z=0},
+        box={w=0.3,d=0.3,h=0.9} -- half-extents
+    }
+
+
+    player.box.x = player.position.x
+    player.box.y = player.position.y
+    player.box.z = player.position.z
+
+    self.player = player
+
     lg.setMeshCullMode("back")
 end
 
@@ -100,7 +113,6 @@ function GameScene:update(dt)
     leftClick, rightClick = leftDown and not wasLeftDown, rightDown and not wasRightDown
 
     self.updatedThisFrame = true
-    g3d.camera.firstPersonMovement(dt)
 
     -- generate a "bubble" of loaded chunks around the camera
     local bubbleWidth = renderDistance
@@ -226,8 +238,10 @@ function GameScene:update(dt)
         end
     end
 
+    local p = self.player
+
     -- right click to place blocks
-    if rightClick and buildx then
+    if rightClick and buildx and not boxIntersectBox({x=buildx+0.5, y=buildy+0.5, z=buildz+0.5, w=0.5, h=0.5, d=0.5}, p.box) then
         local chunk = self:getChunkFromWorld(buildx, buildy, buildz)
         local lx, ly, lz = buildx%size, buildy%size, buildz%size
         if chunk then
@@ -241,6 +255,48 @@ function GameScene:update(dt)
             if lz >= size-1 then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z+1)], true) end
             if lz <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z-1)], true) end
         end
+    end
+
+
+    local speed, jumpForce = 5, 12
+    local dirx, diry, dirz = g3d.camera.getLookVector()
+    local move = {x=0,y=0,z=0}
+
+    if love.keyboard.isDown("w") then
+        move.x = dirx
+        move.y = diry
+    elseif love.keyboard.isDown("s") then
+        move.x = -dirx
+        move.y = -diry
+    end
+    
+    if love.keyboard.isDown("a") then
+        move.x = -diry
+        move.y = dirx
+    elseif love.keyboard.isDown("d") then
+        move.x = diry
+        move.y = -dirx
+    end
+    
+
+    local mvx, mvy, _ = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(move.x, move.y, move.z))
+    p.velocity.x = mvx
+    p.velocity.y = mvy
+    p.velocity.z = p.velocity.z - Physics.WORLD_G * dt
+
+    p.velocity, touchedGround = advanceBoxInWorld(self, p.box, p.velocity, dt)
+
+    p.position.x = p.box.x
+    p.position.y = p.box.y
+    p.position.z = p.box.z
+
+    g3d.camera.position[1] = p.position.x
+    g3d.camera.position[2] = p.position.y
+    g3d.camera.position[3] = p.position.z + 0.7
+    g3d.camera.lookInDirection()
+
+    if touchedGround and love.keyboard.isDown("space") then
+        p.velocity.z = p.velocity.z + jumpForce
     end
 end
 
