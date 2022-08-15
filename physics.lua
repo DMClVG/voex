@@ -2,8 +2,12 @@ local cube = {w=0.5,h=0.5,d=0.5,x=0,y=0,z=0}
 local epsilonx, epsilony, epsilonz = 0.0045, 0.002, 0.005
 local size = Chunk.size
 
+Physics = {
+    WORLD_G = 42
+}
+
 function advanceBoxInWorld(world, box, v, dt)
-    local newv = {unpack(v)}
+    local newv = lume.clone(v)
 
     local dx, dy, dz = v.x * dt, v.y * dt, v.z * dt
     local x, y, z = box.x, box.y, box.z

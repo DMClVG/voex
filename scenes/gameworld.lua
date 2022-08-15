@@ -45,7 +45,7 @@ function GameScene:init()
     local player = {
         position={x=-0.5, y=0.5, z=20},
         velocity={x=0, y=0, z=0},
-        box={w=0.3,d=0.3,h=0.8} -- half-extents
+        box={w=0.3,d=0.3,h=0.9} -- half-extents
     }
 
 
@@ -257,32 +257,33 @@ function GameScene:update(dt)
 
     local p = self.player
 
-    local speed = 5
+    local speed, jumpForce = 5, 12
     local dirx, diry, dirz = g3d.camera.getLookVector()
-    p.velocity = {x=0,y=0,z=0}
+    local move = {x=0,y=0,z=0}
 
     if love.keyboard.isDown("w") then
-        p.velocity.x = dirx
-        p.velocity.y = diry
-        p.velocity.z = dirz
+        move.x = dirx
+        move.y = diry
     elseif love.keyboard.isDown("s") then
-        p.velocity.x = -dirx
-        p.velocity.y = -diry
-        p.velocity.z = -dirz
+        move.x = -dirx
+        move.y = -diry
     end
     
     if love.keyboard.isDown("a") then
-        p.velocity.x = -diry
-        p.velocity.y = dirx
+        move.x = -diry
+        move.y = dirx
     elseif love.keyboard.isDown("d") then
-        p.velocity.x = diry
-        p.velocity.y = -dirx
+        move.x = diry
+        move.y = -dirx
     end
+    
 
-    local nvx, nvy, nvz = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(p.velocity.x, p.velocity.y, p.velocity.z))
-    p.velocity = { x=nvx, y=nvy, z=nvz }
+    local mvx, mvy, _ = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(move.x, move.y, move.z))
+    p.velocity.x = mvx
+    p.velocity.y = mvy
+    p.velocity.z = p.velocity.z - Physics.WORLD_G * dt
 
-    p.velocity, _ = advanceBoxInWorld(self, p.box, p.velocity, dt)
+    p.velocity, touchedGround = advanceBoxInWorld(self, p.box, p.velocity, dt)
 
     p.position.x = p.box.x
     p.position.y = p.box.y
@@ -290,8 +291,12 @@ function GameScene:update(dt)
 
     g3d.camera.position[1] = p.position.x
     g3d.camera.position[2] = p.position.y
-    g3d.camera.position[3] = p.position.z
+    g3d.camera.position[3] = p.position.z + 0.7
     g3d.camera.lookInDirection()
+
+    if touchedGround and love.keyboard.isDown("space") then
+        p.velocity.z = p.velocity.z + jumpForce
+    end
 end
 
 function GameScene:mousemoved(x, y, dx, dy)
