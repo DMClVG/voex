@@ -45,8 +45,6 @@ g3d = {
     shaderpath = ... .. "/g3d.vert",
 }
 
-print(g3d.shaderpath)
-
 -- the shader is what does the heavy lifting, displaying 3D meshes on your 2D monitor
 g3d.shader = love.graphics.newShader(g3d.shaderpath)
 g3d.newModel = require(g3d.path .. "/model")
