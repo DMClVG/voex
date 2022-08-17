@@ -35,18 +35,16 @@ do
     }
 end
 
-function GameWorld:new()
+function GameWorld:new(playerEntity)
     GameWorld.super.new(self)
 
     self.remeshQueue = {}
     self.chunkCreationsThisFrame = 0
     self.updatedThisFrame = false
 
-    local player = loex.entities.Player(-0.5, 0.5, 20)
+    self.player = playerEntity
 
-    self.player = player
-
-    self:addEntity(player)
+    self:addEntity(playerEntity)
 
     lg.setMeshCullMode("back")
 end

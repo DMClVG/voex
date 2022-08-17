@@ -74,21 +74,25 @@ function Network:service()
         end
 
         local peer = event.peer
-        local id = peer:connect_id()
 
         if event.type == "receive" then
             local packet = decodePacket(event.data)
-            self.onPeerReceive(peer, self.users[id], packet)
+            self.onPeerReceive(peer, self.users[peer], packet)
         elseif event.type == "connect" then
-            local user = { id=id }
-            self.users[id] = user
-            self.peers[id] = peer
+            local user = { }
+            self.users[peer] = user
+            table.insert(self.peers, peer)
 
             self.onPeerConnect(peer, user)
         elseif event.type == "disconnect" then
-            self.onPeerDisconnect(peer, self.users[id])
-            self.users[id] = nil
-            self.peers[id] = nil
+            self.onPeerDisconnect(peer, self.users[peer])
+            self.users[peer] = nil
+            
+            for i, e in ipairs(self.peers) do
+                if e == peer then
+                    table.remove(self.peers, i)
+                end
+            end
         end
     end
 end
@@ -98,6 +102,7 @@ function Network:disconnect()
     for _, peer in pairs(self.peers) do
         peer:disconnect()
     end
+    self.enet:flush()
 end
 
 return Network

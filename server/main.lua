@@ -33,24 +33,20 @@ function love.load(args)
 end
 
 function onPeerConnect(peer, user)
-    local player = loex.entities.Player()
-    world:addEntity(player)
-
-    user.entity = player
-
-    for _, chunk in pairs(world.chunks) do
-        peer:send(table.concat({ ("[type=chunk;cx=%d;cy=%d;cz=%d;]"):format(chunk.cx, chunk.cy, chunk.cz),
-            chunk.data:getString() }), 0, "unsequenced")
-    end
-
     print("Connected!")
 end
 
 function onPeerDisconnect(peer, user)
-    print("Disconnected!")
+    if not user.playerEntity then
+        print("Peer disconnected!")
+    else
+        print(user.playerEntity.username.. " left the game :<")
+    end
 end
 
 function onPeerReceive(peer, user, data)
+    print("Received "..data.type)
+
     if data.type == "break" then
         local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
         world:setBlockFromWorld(x, y, z, loex.Tiles.air.id)
@@ -61,8 +57,25 @@ function onPeerReceive(peer, user, data)
         world:setBlockFromWorld(x, y, z, t)
         net:broadcast(("[type=placed;x=%d;y=%d;z=%d;t=%d;]"):format(x, y, z, t))
 
+    elseif data.type == "join" then
+        local player = loex.entities.Player(0, 0, 50)
+        player.username = data.username
+
+        -- TODO: check if username validity
+        print(player.username.. " joined the game :>")
+
+        peer:send(("[type=joinSuccess;x=%d;y=%d;z=%d;id=%s;]"):format(player.x, player.y, player.z, player.id))
+
+        for _, chunk in pairs(world.chunks) do
+            peer:send(table.concat({ ("[type=chunk;cx=%d;cy=%d;cz=%d;]"):format(chunk.cx, chunk.cy, chunk.cz),
+                chunk.data:getString() }), 0, "unsequenced")
+        end
+
+        user.playerEntity = player
+    else
+        assert(false, "Unkown packet type: ".. data.type)
+
     end
-    print("Received "..data.type)
 end
 
 function love.update(dt)

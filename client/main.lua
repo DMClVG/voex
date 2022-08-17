@@ -19,18 +19,28 @@ require "packets"
 local world
 
 function love.load(args)
-    loex.World.singleton = GameWorld()
+    if #args < 3 then
+        print("Usage: client [address] [port] [username]")
+        love.event.quit(-1)
+        return
+    end
 
-    net = loex.Network.connect("localhost:8192")
+    local address = args[1]..":"..args[2]
+    username = args[3]
+
+    net = loex.Network.connect(address)
     net.onPeerConnect = onPeerConnect
     net.onPeerDisconnect = onPeerDisconnect
     net.onPeerReceive = onPeerReceive
 
-    world = loex.World.singleton
 end
 
 function onPeerConnect(peer, _)
     print("Connected!")
+
+    net.master = peer
+
+    net.master:send(packets.Join(username))
 end
 
 function onPeerDisconnect(peer, _)
@@ -45,6 +55,18 @@ function onPeerReceive(peer, _, data)
     --         print(k, v:getSize())
     --     end
     -- end
+
+
+    if data.type == "joinSuccess" then
+        local spawnX, spawnY, spawnZ = tonumber(data.x), tonumber(data.y), tonumber(data.z)
+        local playerID = data.id
+        local playerEntity = loex.entities.Player(spawnX, spawnY, spawnZ, playerID)
+        
+        print(("Joined under username ".. username .. " (ID: " .. playerID .. ") at spawn point %d, %d, %d"):format(spawnX, spawnY, spawnZ))
+
+        loex.World.singleton = GameWorld(playerEntity)
+        world = loex.World.singleton
+    end
 
     if data.type == "chunk" then
         world:addChunk(loex.Chunk.fromPacket(data))
@@ -84,21 +106,26 @@ function onPeerReceive(peer, _, data)
         world:requestRemesh(chunk, true)
     end
 
-    print("Received!")
 end
 
 function love.update(dt)
     net:service()
 
-    world:update(dt)
+    if world then
+        world:update(dt)
+    end
 end
 
 function love.draw()
-    world:draw()
+    if world then
+        world:draw()
+    end
 end
 
 function love.mousemoved(x, y, dx, dy)
-    world:mousemoved(x, y, dx, dy)
+    if world then
+        world:mousemoved(x, y, dx, dy)
+    end
 end
 
 function love.keypressed(k)
@@ -113,5 +140,8 @@ function love.resize(w, h)
 end
 
 function love.quit()
-    net:disconnect()
+    if net then
+        print("Disconnecting ....")
+        net:disconnect()
+    end
 end
