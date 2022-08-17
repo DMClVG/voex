@@ -1,5 +1,6 @@
-GameScene = Object:extend()
-local size
+GameWorld = loex.World:extend()
+local Chunk = loex.Chunk
+local size = Chunk.size
 local threadpool = {}
 -- load up some threads so that chunk meshing won't block the main thread
 for i=1, 8 do
@@ -34,81 +35,48 @@ do
     }
 end
 
-function GameScene:init()
-    size = Chunk.size
-    self.thingList = {}
-    self.chunkMap = {}
+function GameWorld:new()
+    GameWorld.super.new(self)
+
     self.remeshQueue = {}
     self.chunkCreationsThisFrame = 0
     self.updatedThisFrame = false
 
-    local player = {
-        position={x=-0.5, y=0.5, z=20},
-        velocity={x=0, y=0, z=0},
-        box={w=0.3,d=0.3,h=0.9} -- half-extents
-    }
-
-
-    player.box.x = player.position.x
-    player.box.y = player.position.y
-    player.box.z = player.position.z
+    local player = loex.entities.Player(-0.5, 0.5, 20)
 
     self.player = player
 
+    self:addEntity(player)
+
     lg.setMeshCullMode("back")
-end
-
-function GameScene:addThing(thing)
-    if not thing then return end
-    table.insert(self.thingList, thing)
-    return thing
-end
-
-function GameScene:removeThing(index)
-    if not index then return end
-    local thing = self.thingList[index]
-    table.remove(self.thingList, index)
-    return thing
 end
 
 local function updateChunk(self, x, y, z)
     x = x + math.floor(g3d.camera.position[1]/size)
     y = y + math.floor(g3d.camera.position[2]/size)
     z = z + math.floor(g3d.camera.position[3]/size)
-    local hash = ("%d/%d/%d"):format(x, y, z)
-    if self.chunkMap[hash] then
-        self.chunkMap[hash].frames = 0
+    local chunk = self:getChunk(x, y, z)
+    if chunk then
+        chunk.frames = 0
     end
 end
 
-function GameScene:addChunk(chunk)
-    print("added")
+function GameWorld:onChunkAdded(chunk)
     local x, y, z = chunk.cx, chunk.cy, chunk.cz
-    self.chunkMap[chunk.hash] = chunk
     self.chunkCreationsThisFrame = self.chunkCreationsThisFrame + 1
 
+    self:requestRemesh(chunk)
+
     -- this chunk was just created, so update all the chunks around it
-    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x+1,y,z)])
-    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x-1,y,z)])
-    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y+1,z)])
-    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y-1,z)])
-    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z+1)])
-    self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z-1)])
+    self:requestRemesh(self:getChunk(x+1,y,z))
+    self:requestRemesh(self:getChunk(x-1,y,z))
+    self:requestRemesh(self:getChunk(x,y+1,z))
+    self:requestRemesh(self:getChunk(x,y-1,z))
+    self:requestRemesh(self:getChunk(x,y,z+1))
+    self:requestRemesh(self:getChunk(x,y,z-1))
 end
 
-function GameScene:update(dt)
-    -- update all the things in the scene
-    -- remove the dead things
-    local i = 1
-    while i <= #self.thingList do
-        local thing = self.thingList[i]
-        if not thing.dead then
-            thing:update()
-            i = i + 1
-        else
-            self:removeThing(i)
-        end
-    end
+function GameWorld:onUpdated(dt)
 
     -- collect mouse inputs
     wasLeftDown, wasRightDown = leftDown, rightDown
@@ -117,24 +85,24 @@ function GameScene:update(dt)
 
     self.updatedThisFrame = true
 
-    -- generate a "bubble" of loaded chunks around the camera
-    local bubbleWidth = renderDistance
-    local bubbleHeight = math.floor(renderDistance * 0.75)
-    local creationLimit = 1
-    self.chunkCreationsThisFrame = 0
-    for r=0, bubbleWidth do
-        for a=0, math.pi*2, math.pi*2/(8*r) do
-            local h = math.floor(math.cos(r*(math.pi/2)/bubbleWidth)*bubbleHeight + 0.5)
-            for y=0, h do
-                local x, z = math.floor(math.cos(a)*r + 0.5), math.floor(math.sin(a)*r + 0.5)
-                if y ~= 0 then
-                    updateChunk(self, x, -y, z)
-                end
-                updateChunk(self, x, y, z)
-                if self.chunkCreationsThisFrame >= creationLimit then break end
-            end
-        end
-    end
+    -- -- generate a "bubble" of loaded chunks around the camera
+    -- local bubbleWidth = renderDistance
+    -- local bubbleHeight = math.floor(renderDistance * 0.75)
+    -- local creationLimit = 1
+    -- self.chunkCreationsThisFrame = 0
+    -- for r=0, bubbleWidth do
+    --     for a=0, math.pi*2, math.pi*2/(8*r) do
+    --         local h = math.floor(math.cos(r*(math.pi/2)/bubbleWidth)*bubbleHeight + 0.5)
+    --         for y=0, h do
+    --             local x, z = math.floor(math.cos(a)*r + 0.5), math.floor(math.sin(a)*r + 0.5)
+    --             if y ~= 0 then
+    --                 updateChunk(self, x, -y, z)
+    --             end
+    --             updateChunk(self, x, y, z)
+    --             if self.chunkCreationsThisFrame >= creationLimit then break end
+    --         end
+    --     end
+    -- end
 
     -- count how many threads are being used right now
     local threadusage = 0
@@ -171,7 +139,7 @@ function GameScene:update(dt)
         local ok = false
         repeat
             chunk = table.remove(self.remeshQueue, 1)
-        until not chunk or self.chunkMap[chunk.hash]
+        until not chunk or self.chunks[chunk.hash]
 
         if chunk and not chunk.dead then
             for _, thread in ipairs(threadpool) do
@@ -180,20 +148,20 @@ function GameScene:update(dt)
                     -- so that voxels on the edges can face themselves properly
                     local x, y, z = chunk.cx, chunk.cy, chunk.cz
                     local neighbor, n1, n2, n3, n4, n5, n6
-                    neighbor = self.chunkMap[("%d/%d/%d"):format(x+1,y,z)]
+                    neighbor = self:getChunk(x+1,y,z)
                     if neighbor and not neighbor.dead then n1 = neighbor.data end
-                    neighbor = self.chunkMap[("%d/%d/%d"):format(x-1,y,z)]
+                    neighbor = self:getChunk(x-1,y,z)
                     if neighbor and not neighbor.dead then n2 = neighbor.data end
-                    neighbor = self.chunkMap[("%d/%d/%d"):format(x,y+1,z)]
+                    neighbor = self:getChunk(x,y+1,z)
                     if neighbor and not neighbor.dead then n3 = neighbor.data end
-                    neighbor = self.chunkMap[("%d/%d/%d"):format(x,y-1,z)]
+                    neighbor = self:getChunk(x,y-1,z)
                     if neighbor and not neighbor.dead then n4 = neighbor.data end
-                    neighbor = self.chunkMap[("%d/%d/%d"):format(x,y,z+1)]
+                    neighbor = self:getChunk(x,y,z+1)
                     if neighbor and not neighbor.dead then n5 = neighbor.data end
-                    neighbor = self.chunkMap[("%d/%d/%d"):format(x,y,z-1)]
+                    neighbor = self:getChunk(x,y,z-1)
                     if neighbor and not neighbor.dead then n6 = neighbor.data end
 
-                    thread:start(chunk.hash, chunk.data, tiles, tids, n1, n2, n3, n4, n5, n6)
+                    thread:start(chunk.hash, chunk.data, chunk.size, common.Tiles.tiles, common.Tiles.tids, n1, n2, n3, n4, n5, n6)
                     threadchannels[chunk.hash] = chunk
                     break
                 end
@@ -225,15 +193,7 @@ function GameScene:update(dt)
                 buildx, buildy, buildz = floor(x + vx*li), floor(y + vy*li), floor(z + vz*li)
 
                 if leftClick then
-                    local x, y, z = chunk.cx, chunk.cy, chunk.cz
-                    chunk:setBlock(lx,ly,lz, 0)
-                    self:requestRemesh(chunk, true)
-                    if lx >= size-1 then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x+1,y,z)], true) end
-                    if lx <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x-1,y,z)], true) end
-                    if ly >= size-1 then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y+1,z)], true) end
-                    if ly <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y-1,z)], true) end
-                    if lz >= size-1 then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z+1)], true) end
-                    if lz <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z-1)], true) end
+                    net:broadcast(packets.Break(bx, by, bz))
                 end
 
                 break
@@ -242,21 +202,14 @@ function GameScene:update(dt)
     end
 
     local p = self.player
+    local pbox = p:getBox()
+    local placedBlock = 1
 
     -- right click to place blocks
-    if rightClick and buildx and not boxIntersectBox({x=buildx+0.5, y=buildy+0.5, z=buildz+0.5, w=0.5, h=0.5, d=0.5}, p.box) then
+    if rightClick and buildx and not boxIntersectBox({x=buildx+0.5, y=buildy+0.5, z=buildz+0.5, w=0.5, h=0.5, d=0.5}, pbox) then
         local chunk = self:getChunkFromWorld(buildx, buildy, buildz)
-        local lx, ly, lz = buildx%size, buildy%size, buildz%size
         if chunk then
-            local x, y, z = chunk.cx, chunk.cy, chunk.cz
-            chunk:setBlock(lx, ly, lz, 1)
-            self:requestRemesh(chunk, true)
-            if lx >= size-1 then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x+1,y,z)], true) end
-            if lx <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x-1,y,z)], true) end
-            if ly >= size-1 then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y+1,z)], true) end
-            if ly <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y-1,z)], true) end
-            if lz >= size-1 then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z+1)], true) end
-            if lz <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z-1)], true) end
+            net:broadcast(packets.Place(buildx, buildy, buildz, placedBlock))
         end
     end
 
@@ -283,46 +236,42 @@ function GameScene:update(dt)
     
 
     local mvx, mvy, _ = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(move.x, move.y, move.z))
-    p.velocity.x = mvx
-    p.velocity.y = mvy
-    p.velocity.z = p.velocity.z - Physics.WORLD_G * dt
+    p.vx = mvx
+    p.vy = mvy
+    p.vz = p.vz - Physics.WORLD_G * dt
 
-    p.velocity, touchedGround = advanceBoxInWorld(self, p.box, p.velocity, dt)
+    local nv, touchedGround = advanceBoxInWorld(self, pbox, {x=p.vx,y=p.vy,z=p.vz}, dt)
+    p.vx = nv.x
+    p.vy = nv.y
+    p.vz = nv.z
+    p.x = pbox.x
+    p.y = pbox.y
+    p.z = pbox.z
 
-    p.position.x = p.box.x
-    p.position.y = p.box.y
-    p.position.z = p.box.z
-
-    g3d.camera.position[1] = p.position.x
-    g3d.camera.position[2] = p.position.y
-    g3d.camera.position[3] = p.position.z + 0.7
+    g3d.camera.position[1] = p.x
+    g3d.camera.position[2] = p.y
+    g3d.camera.position[3] = p.z + 0.7
     g3d.camera.lookInDirection()
 
     if touchedGround and love.keyboard.isDown("space") then
-        p.velocity.z = p.velocity.z + jumpForce
+        p.vz = p.vz + jumpForce
     end
 end
 
-function GameScene:mousemoved(x, y, dx, dy)
+function GameWorld:mousemoved(x, y, dx, dy)
     g3d.camera.firstPersonLook(dx, dy)
 end
 
-function GameScene:draw()
+function GameWorld:draw()
     lg.clear(lume.color "#4488ff")
 
-
-    -- draw all the things in the scene
-    for _, thing in ipairs(self.thingList) do
-        thing:draw()
-    end
-
     lg.setColor(1,1,1)
-    for hash, chunk in pairs(self.chunkMap) do
+    for _, chunk in pairs(self.chunks) do
         chunk:draw()
 
         if self.updatedThisFrame then
             chunk.frames = chunk.frames + 1
-            if chunk.frames > 100 then chunk:destroy() end
+            -- if chunk.frames > 100 then chunk:destroy() end
         end
     end
 
@@ -336,37 +285,21 @@ function GameScene:draw()
         lg.setWireframe(false)
     end
     lg.setMeshCullMode("back")
-
 end
 
-function GameScene:getChunkFromWorld(x,y,z)
-    local floor = math.floor
-    return self.chunkMap[("%d/%d/%d"):format(floor(x/size),floor(y/size),floor(z/size))]
-end
-
-function GameScene:getBlockFromWorld(x,y,z)
-    local floor = math.floor
-    local chunk = self.chunkMap[("%d/%d/%d"):format(floor(x/size),floor(y/size),floor(z/size))]
-    if chunk then return chunk:getBlock(x%size, y%size, z%size) end
-    return -1
-end
-
-function GameScene:setBlockFromWorld(x,y,z, value)
-    local floor = math.floor
-    local chunk = self.chunkMap[("%d/%d/%d"):format(floor(x/size),floor(y/size),floor(z/size))]
-    if chunk then chunk:setBlock(x%size, y%size, z%size, value) end
-end
-
-function GameScene:requestRemesh(chunk, first)
+function GameWorld:requestRemesh(chunk, first)
     -- don't add a nil chunk or a chunk that's already in the queue
-    if not chunk then return end
+    if not chunk or chunk.inRemeshQueue then return end
     local x, y, z = chunk.cx, chunk.cy, chunk.cz
-    if not self.chunkMap[("%d/%d/%d"):format(x+1,y,z)] then return end
-    if not self.chunkMap[("%d/%d/%d"):format(x-1,y,z)] then return end
-    if not self.chunkMap[("%d/%d/%d"):format(x,y+1,z)] then return end
-    if not self.chunkMap[("%d/%d/%d"):format(x,y-1,z)] then return end
-    if not self.chunkMap[("%d/%d/%d"):format(x,y,z+1)] then return end
-    if not self.chunkMap[("%d/%d/%d"):format(x,y,z-1)] then return end
+
+    -- check if has neighboring chunks
+    if not self:getChunk(x+1,y,z) then return end
+    if not self:getChunk(x-1,y,z) then return end
+    if not self:getChunk(x,y+1,z) then return end
+    if not self:getChunk(x,y-1,z) then return end
+    if not self:getChunk(x,y,z+1) then return end
+    if not self:getChunk(x,y,z-1) then return end
+
     chunk.inRemeshQueue = true
     if first then
         table.insert(self.remeshQueue, 1, chunk)

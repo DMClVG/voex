@@ -1,20 +1,21 @@
-local size = 16
+local size = 12
 local ffi = require "ffi"
 
-Chunk = Object:extend()
+local Chunk = Object:extend()
 Chunk.size = size
 
 function Chunk:new(x,y,z,data)
-    self.data = {}
     self.cx = x
     self.cy = y
     self.cz = z
     self.x = x*size
     self.y = y*size
     self.z = z*size
-    self.hash = ("%d/%d/%d"):format(x,y,z)
+    self.hash = self.hashFrom(x,y,z)
     self.frames = 0
     self.inRemeshQueue = false
+    self.world = loex.World.singleton
+
     if data then
         self.data = data
     else
@@ -23,33 +24,17 @@ function Chunk:new(x,y,z,data)
     self.datapointer = ffi.cast("uint8_t *", self.data:getFFIPointer())
 end
 
-function fromPacket(packet)
-    local data = ffi.cast("uint8_t *", packet:getFFIPointer())
-    local ptr = 1
-    local i = 1
-    local n = ""
-    local cpos = {0, 0, 0}
-    while true do
-        if data[ptr] == string.byte('/') then
-            cpos[i] = tonumber(n)
-            n = ""
-            i = i + 1
-        elseif data[ptr] == string.byte(']') then
-            cpos[i] = tonumber(n)
-            ptr = ptr + 1
-            break
-        else
-            n = n .. string.char(data[ptr])
-        end
-        ptr = ptr + 1
-    end
-    assert(packet:getSize() - ptr == Chunk.size^3, "Chunk tile data of wrong size!")
-    return Chunk(cpos[1], cpos[2], cpos[3], love.data.newDataView(packet, ptr, packet:getSize() - ptr))
+function Chunk.fromPacket(packet)
+    assert(packet.bin:getSize() == Chunk.size^3, "Chunk data of wrong size!")
+    local cx = tonumber(packet.cx)
+    local cy = tonumber(packet.cy)
+    local cz = tonumber(packet.cz)
+    return Chunk(cx, cy, cz, packet.bin)
 end
 
 function Chunk:generate()
     local f = 0.125
-    local planks = 2
+    local planks = loex.Tiles.planks.id
     local datapointer = self.datapointer
     for i=0, size*size*size - 1 do
         local x, y, z = i%size + self.x, math.floor(i/size)%size + self.y, math.floor(i/(size*size)) + self.z
@@ -65,7 +50,7 @@ function Chunk:getBlock(x,y,z)
         return self.datapointer[i]
     end
 
-    local chunk = scene():getChunkFromWorld(self.x+x,self.y+y,self.z+z)
+    local chunk = self.world:getChunkFromWorld(self.x+x,self.y+y,self.z+z)
     if chunk then return chunk:getBlock(x%size,y%size,z%size) end
     return -1
 end
@@ -75,11 +60,12 @@ function Chunk:setBlock(x,y,z, value)
 
     if x >= 0 and y >= 0 and z >= 0 and x < size and y < size and z < size then
         local i = x + size*y + size*size*z
+        local oldvalue = self.datapointer[i]
         self.datapointer[i] = value
-        return
+        return oldvalue
     end
 
-    local chunk = scene():getChunkFromWorld(self.x+x,self.y+y,self.z+z)
+    local chunk = self.world:getChunkFromWorld(self.x+x,self.y+y,self.z+z)
     if chunk then return chunk:setBlock(x%size,y%size,z%size, value) end
 end
 
@@ -93,7 +79,28 @@ function Chunk:destroy()
     if self.model then self.model.mesh:release() end
     self.dead = true
     self.data:release()
-    scene().chunkMap[self.hash] = nil
+    self.world.chunks[self.hash] = nil
 end
 
-return { Chunk=Chunk, fromPacket=fromPacket}
+function Chunk.hashFrom(x, y, z)
+    return ("%d/%d/%d"):format(x, y, z)
+end
+
+function Chunk.fromHash(hash)
+    local n = {}
+    local coord = 1
+    local coords = {0, 0, 0}
+    for i=1,#hash do
+        assert(coord < 3)
+
+        if hash[i] == string.byte('/') then
+            coords[coord] = tonumber(table.concat(n))
+            n = {}
+        else
+            table.insert(n, string.char(hash[i]))
+        end
+    end
+    return coords[0], coords[1], coords[2]
+end
+
+return Chunk

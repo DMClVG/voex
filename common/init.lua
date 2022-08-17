@@ -1,7 +1,7 @@
 loex = {
-    _VERSION     = "dev",
-    _URL         = "https://github.com/DMClVG/voex",
-    _LICENSE     = [[
+    _VERSION = "dev",
+    _URL     = "https://github.com/DMClVG/voex",
+    _LICENSE = [[
         MIT License
 
         Copyright (c) 2022 DMClVG
@@ -24,13 +24,20 @@ loex = {
         OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
         SOFTWARE.
     ]],
-    path=...
+    path     = ...,
+    lpath    = (...) .. "."
 }
 
 assert(love, "this package needs löve!")
 
-Object = require(loex.path .. "/classic")
+Object = require(loex.lpath .. "lib.classic")
+lume = require(loex.lpath .. "lib.lume")
 
-loex.chunk = require(loex.path .. "/chunk")
+loex.Tiles = require(loex.lpath .. "tiles"):init()
+loex.Entity = require(loex.lpath .. "entity")
+loex.entities = require(loex.lpath .. "entities")
+loex.Chunk = require(loex.lpath .. "chunk")
+loex.World = require(loex.lpath .. "world")
+loex.Network = require(loex.lpath .. "network")
 
 return loex

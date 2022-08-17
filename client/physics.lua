@@ -1,6 +1,6 @@
 local cube = {w=0.5,h=0.5,d=0.5,x=0,y=0,z=0}
 local epsilonx, epsilony, epsilonz = 0.0045, 0.002, 0.005
-local size = Chunk.size
+local size = loex.Chunk.size
 
 Physics = {
     WORLD_G = 42
