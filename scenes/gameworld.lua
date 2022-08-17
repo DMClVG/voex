@@ -247,13 +247,13 @@ function GameScene:update(dt)
         if chunk then
             local x, y, z = chunk.cx, chunk.cy, chunk.cz
             chunk:setBlock(lx, ly, lz, 1)
-            self:requestRemesh(chunk, true)
             if lx >= size-1 then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x+1,y,z)], true) end
             if lx <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x-1,y,z)], true) end
             if ly >= size-1 then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y+1,z)], true) end
             if ly <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y-1,z)], true) end
             if lz >= size-1 then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z+1)], true) end
             if lz <= 0      then self:requestRemesh(self.chunkMap[("%d/%d/%d"):format(x,y,z-1)], true) end
+            self:requestRemesh(chunk, true)
         end
     end
 
