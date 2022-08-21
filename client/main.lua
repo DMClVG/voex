@@ -6,10 +6,11 @@ lg.setDefaultFilter "nearest"
 
 io.stdout:setvbuf "no"
 
-common = require "common"
+g3d = require "lib/g3d"
 enet = require "enet"
 
-g3d = require "lib/g3d"
+common = require "common"
+
 
 require "scenes.gameworld"
 require "physics"
@@ -55,7 +56,7 @@ function onPeerReceive(peer, _, data)
     --         print(k, v:getSize())
     --     end
     -- end
-
+    print("Received ".. data.type)
 
     if data.type == "joinSuccess" then
         local spawnX, spawnY, spawnZ = tonumber(data.x), tonumber(data.y), tonumber(data.z)
@@ -104,6 +105,13 @@ function onPeerReceive(peer, _, data)
         if lz >= size-1 then world:requestRemesh(world:getChunk(cx,cy,cz+1), true) end
         if lz <= 0      then world:requestRemesh(world:getChunk(cx,cy,cz-1), true) end
         world:requestRemesh(chunk, true)
+    elseif data.type == "entityMoved" and data.id ~= world.player.id then
+        local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
+        local entity = world:getEntity(data.id)
+        assert(entity)
+        entity.x = x
+        entity.y = y
+        entity.z = z
     elseif data.type == "entityAdd" and data.id ~= world.player.id then
         local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
         world:addEntity(loex.entities[data.eType](x, y, z, data.id))

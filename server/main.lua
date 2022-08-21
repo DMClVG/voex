@@ -1,5 +1,7 @@
 if arg[#arg] == "vsc_debug" then require("lldebugger").start() end
 
+IS_SERVER = true
+
 common = require "common"
 enet = require "enet"
 
@@ -52,7 +54,12 @@ end
 function onPeerReceive(peer, user, data)
     print("Received "..data.type)
 
-    if data.type == "break" then
+    if data.type == "move" then
+        local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
+        user.playerEntity.x = x
+        user.playerEntity.y = y
+        user.playerEntity.z = z
+    elseif data.type == "break" then
         local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
         world:setBlockFromWorld(x, y, z, loex.Tiles.air.id)
         net:broadcast(packets.Broken(x, y, z))
@@ -66,7 +73,7 @@ function onPeerReceive(peer, user, data)
         local player = loex.entities.Player(0, 0, 50)
         player.username = data.username
         
-        -- TODO: check if username validity
+        -- TODO: check if username valid
         print(player.username.. " joined the game :>")
         
         peer:send(packets.JoinSuccess(player.id, player.x, player.y, player.z))
@@ -92,4 +99,17 @@ end
 function love.update(dt)
     net:service()
     world:update(dt)
+    synchronizePositions()
+end
+
+function synchronizePositions()
+    local entities = world.entities
+    for _, e in pairs(entities) do
+        if e.syncX == nil or e.x ~= e.syncX or e.y ~= e.syncY or e.z ~= e.syncZ then
+            e.syncX = e.x
+            e.syncY = e.y
+            e.syncZ = e.z
+            net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ))
+        end
+    end
 end

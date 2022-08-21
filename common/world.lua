@@ -48,6 +48,24 @@ function World:getEntity(id)
     return self.entities[id]
 end
 
+function World:queryOne(class)
+    for _, entity in pairs(self.entities) do
+        entity:is(class)
+    end
+    return nil
+end
+
+function World:query(class)
+    if class == loex.Entity then
+        return self.entities
+    end
+    local out = {}
+    for _, entity in pairs(self.entities) do
+        entity:is(class)
+    end
+    return out
+end
+
 function World:getChunkFromWorld(x, y, z)
     local floor = math.floor
     return self:getChunk(floor(x / size), floor(y / size), floor(z / size))

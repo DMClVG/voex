@@ -17,11 +17,15 @@ function packets.Broken(x, y, z)
 end
 
 function packets.EntityAdd(id, type, x, y, z)
-    return ("[type=entityAdd;eType=%s;x=%d;y=%d;z=%d;id=%s;]"):format(type, x, y, z, id)
+    return ("[type=entityAdd;eType=%s;x=%f;y=%f;z=%f;id=%s;]"):format(type, x, y, z, id)
 end
 
 function packets.EntityRemove(id)
     return ("[type=entityRemove;id=%s;]"):format(id)
+end
+
+function packets.EntityMoved(id, x, y, z)
+    return ("[type=entityMoved;x=%f;y=%f;z=%f;id=%s;]"):format(x, y, z, id)
 end
 
 return packets

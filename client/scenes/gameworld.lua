@@ -199,7 +199,7 @@ function GameWorld:onUpdated(dt)
                 buildx, buildy, buildz = floor(x + vx*li), floor(y + vy*li), floor(z + vz*li)
 
                 if leftClick then
-                    net:broadcast(packets.Break(bx, by, bz))
+                    net.master:send(packets.Break(bx, by, bz))
                 end
 
                 break
@@ -215,7 +215,7 @@ function GameWorld:onUpdated(dt)
     if rightClick and buildx and not boxIntersectBox({x=buildx+0.5, y=buildy+0.5, z=buildz+0.5, w=0.5, h=0.5, d=0.5}, pbox) then
         local chunk = self:getChunkFromWorld(buildx, buildy, buildz)
         if chunk then
-            net:broadcast(packets.Place(buildx, buildy, buildz, placedBlock))
+            net.master:send(packets.Place(buildx, buildy, buildz, placedBlock))
         end
     end
 
@@ -262,6 +262,8 @@ function GameWorld:onUpdated(dt)
     if touchedGround and love.keyboard.isDown("space") then
         p.vz = p.vz + jumpForce
     end
+
+    net.master:send(packets.Move(p.x, p.y, p.z))
 end
 
 function GameWorld:mousemoved(x, y, dx, dy)
@@ -291,6 +293,10 @@ function GameWorld:draw()
         lg.setWireframe(false)
     end
     lg.setMeshCullMode("back")
+
+    for _, entity in pairs(self.entities) do
+        entity:draw()
+    end
 end
 
 function GameWorld:requestRemesh(chunk, first)
