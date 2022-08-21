@@ -61,9 +61,30 @@ function World:query(class)
     end
     local out = {}
     for _, entity in pairs(self.entities) do
-        entity:is(class)
+        if entity:is(class) then
+            out[entity.id] = entity
+        end
     end
     return out
+end
+
+local cube = { w=0.5, h=0.5, d=0.5 }
+local floor = math.floor
+local intersect = loex.Utils.intersectBoxAndBox
+function World:intersectWithWorld(box) 
+    for i = floor(box.x-box.w),floor(box.x+box.w) do
+        for j = floor(box.y-box.d),floor(box.y+box.d) do
+            for k = floor(box.z-box.h),floor(box.z+box.h) do
+                cube.x = i + 0.5
+                cube.y = j + 0.5
+                cube.z = k + 0.5
+                if self:getBlockFromWorld(i, j, k) > 0 and intersect(box, cube) then
+                    return i, j, k
+                end
+            end
+        end
+    end
+    return false
 end
 
 function World:getChunkFromWorld(x, y, z)

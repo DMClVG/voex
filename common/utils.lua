@@ -1,8 +1,6 @@
-function newBox(x, y, z, w, h, d)
-    return {x=x,y=y,z=z,w=w,h=h,d=d}
-end
+local Utils = {}
 
-function iterBoxFloored(box)
+function Utils.iterBoxFloored(box)
     local x, y, z = math.floor(box.x-box.w), math.floor(box.y-box.d), math.floor(box.z-box.h)
     local a, b, c = math.floor(box.x+box.w), math.floor(box.y+box.d), math.floor(box.z+box.h)
     assert(x <= a and y <= b and z <= c, "negative box dimensions!")
@@ -24,13 +22,13 @@ function iterBoxFloored(box)
     end
 end
 
-function boxIntersectBox(a, b)
+function Utils.intersectBoxAndBox(a, b)
     return  a.x + a.w > b.x - b.w and a.x - a.w < b.x + b.w and
             a.y + a.d > b.y - b.d and a.y - a.d < b.y + b.d and
             a.z + a.h > b.z - b.h and a.z - a.h < b.z + b.h
 end
 
-function boxExpand(box, ex, ey, ez)
+function Utils.expand(box, ex, ey, ez)
     local hex, hey, hez = ex/2, ey/2, ez/2
     box.x = box.x + hex
     box.y = box.y + hey
@@ -41,3 +39,5 @@ function boxExpand(box, ex, ey, ez)
     box.h = box.h + math.abs(hez)
     return box
 end
+
+return Utils

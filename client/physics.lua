@@ -17,14 +17,14 @@ function advanceBoxInWorld(world, box, v, dt)
     
     local touchedGround = false
     
-    local boxz = boxExpand(lume.clone(box), 0, 0, dz)
-    for i, j, k in iterBoxFloored(boxz) do
+    local boxz = loex.Utils.expand(lume.clone(box), 0, 0, dz)
+    for i, j, k in loex.Utils.iterBoxFloored(boxz) do
         local chunk = getChunk(world, i, j, k)
         if chunk then
             cube.x = i+0.5
             cube.y = j+0.5
             cube.z = k+0.5
-            if chunk:getBlock(i%size,j%size,k%size) ~= 0 and boxIntersectBox(cube, boxz) then
+            if chunk:getBlock(i%size,j%size,k%size) ~= 0 and loex.Utils.intersectBoxAndBox(cube, boxz) then
                 if dz < 0 then
                     dz = math.min(math.max(dz, (k+1+epsilonz)-(z-h)),0)
                     touchedGround = true
@@ -36,14 +36,14 @@ function advanceBoxInWorld(world, box, v, dt)
         end
     end
 
-    local boxx = boxExpand(lume.clone(box), dx, 0, dz)
-    for i, j, k in iterBoxFloored(boxx) do
+    local boxx = loex.Utils.expand(lume.clone(box), dx, 0, dz)
+    for i, j, k in loex.Utils.iterBoxFloored(boxx) do
         local chunk = getChunk(world, i, j, k)
         if chunk then
             cube.x = i+0.5
             cube.y = j+0.5
             cube.z = k+0.5
-            if chunk:getBlock(i%size,j%size,k%size) ~= 0 and boxIntersectBox(cube, boxx) then
+            if chunk:getBlock(i%size,j%size,k%size) ~= 0 and loex.Utils.intersectBoxAndBox(cube, boxx) then
                 if dx < 0 then
                     dx = math.min(math.max(dx, (i+1+epsilonx)-(x-w)),0)
                 else
@@ -54,14 +54,14 @@ function advanceBoxInWorld(world, box, v, dt)
         end
     end
 
-    local boxy = boxExpand(lume.clone(box), dx, dy, dz)
-    for i, j, k in iterBoxFloored(boxy) do
+    local boxy = loex.Utils.expand(lume.clone(box), dx, dy, dz)
+    for i, j, k in loex.Utils.iterBoxFloored(boxy) do
         local chunk = getChunk(world, i, j, k)
         if chunk then
             cube.x = i+0.5
             cube.y = j+0.5
             cube.z = k+0.5
-            if chunk:getBlock(i%size,j%size,k%size) ~= 0 and boxIntersectBox(cube, boxy) then
+            if chunk:getBlock(i%size,j%size,k%size) ~= 0 and loex.Utils.intersectBoxAndBox(cube, boxy) then
                 if dy < 0 then
                     dy = math.min(math.max(dy, (j+1+epsilony)-(y-d)),0)
                 else

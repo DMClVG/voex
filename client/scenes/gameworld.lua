@@ -35,9 +35,12 @@ do
     }
 end
 
+
 function GameWorld:new(playerEntity)
     GameWorld.super.new(self)
-
+    
+    self.placeQueue = {}
+    self.breakQueue = {}
     self.remeshQueue = {}
     self.chunkCreationsThisFrame = 0
     self.updatedThisFrame = false
@@ -92,6 +95,20 @@ function GameWorld:onUpdated(dt)
     leftClick, rightClick = leftDown and not wasLeftDown, rightDown and not wasRightDown
 
     self.updatedThisFrame = true
+
+    for key, places in pairs(self.placeQueue) do
+        if love.timer.getTime() - places.timeStamp > 0.5 then
+            self:setBlockAndRemesh(places.x, places.y, places.z, 0)
+            self.placeQueue[key] = nil
+        end
+    end
+
+    for key, breaks in pairs(self.breakQueue) do
+        if love.timer.getTime() - breaks.timeStamp > 0.5 then
+            self:setBlockAndRemesh(breaks.x, breaks.y, breaks.z, breaks.prev)
+            self.breakQueue[key] = nil
+        end
+    end
 
     -- -- generate a "bubble" of loaded chunks around the camera
     -- local bubbleWidth = renderDistance
@@ -191,7 +208,8 @@ function GameWorld:onUpdated(dt)
         local chunk = self:getChunkFromWorld(bx, by, bz)
         if chunk then
             local lx, ly, lz = bx%size, by%size, bz%size
-            if chunk:getBlock(lx,ly,lz) ~= 0 then
+            local tile = chunk:getBlock(lx,ly,lz)
+            if tile ~= 0 then
                 blockCursor:setTranslation(bx, by, bz)
                 blockCursorVisible = true
 
@@ -201,7 +219,9 @@ function GameWorld:onUpdated(dt)
                 buildx, buildy, buildz = floor(x + vx*li), floor(y + vy*li), floor(z + vz*li)
 
                 if leftClick then
+                    self.breakQueue[("%d/%d/%d"):format(bx, by, bz)] = { x=bx,y=by,z=bz,timeStamp=love.timer.getTime(), prev=tile }
                     net.master:send(packets.Break(bx, by, bz))
+                    self:setBlockAndRemesh(bx, by, bz, 0, true)
                 end
 
                 break
@@ -214,10 +234,12 @@ function GameWorld:onUpdated(dt)
     local placedBlock = 1
 
     -- right click to place blocks
-    if rightClick and buildx and not boxIntersectBox({x=buildx+0.5, y=buildy+0.5, z=buildz+0.5, w=0.5, h=0.5, d=0.5}, pbox) then
+    if rightClick and buildx and not loex.Utils.intersectBoxAndBox({x=buildx+0.5, y=buildy+0.5, z=buildz+0.5, w=0.5, h=0.5, d=0.5}, pbox) then
         local chunk = self:getChunkFromWorld(buildx, buildy, buildz)
         if chunk then
+            self.placeQueue[("%d/%d/%d"):format(buildx, buildy, buildz)] = { x=buildx,y=buildy,z=buildz,timeStamp=love.timer.getTime() }
             net.master:send(packets.Place(buildx, buildy, buildz, placedBlock))
+            self:setBlockAndRemesh(buildx, buildy, buildz, placedBlock)
         end
     end
 
@@ -303,6 +325,29 @@ function GameWorld:draw()
 
     for _, entity in pairs(self.entities) do
         entity:draw()
+    end
+end
+
+function GameWorld:setBlockAndRemesh(x, y, z, t, neighboursFirst)
+    local chunk = self:getChunkFromWorld(x, y, z)
+    assert(chunk)
+
+    local size = chunk.size
+    local lx, ly, lz = x%size, y%size, z%size
+    local cx, cy, cz = chunk.cx, chunk.cy, chunk.cz
+    chunk:setBlock(lx, ly, lz, t)
+
+    if neighboursFirst then
+        self:requestRemesh(chunk, true)
+    end
+    if lx >= size-1 then self:requestRemesh(self:getChunk(cx+1,cy,cz), true) end
+    if lx <= 0      then self:requestRemesh(self:getChunk(cx-1,cy,cz), true) end
+    if ly >= size-1 then self:requestRemesh(self:getChunk(cx,cy+1,cz), true) end
+    if ly <= 0      then self:requestRemesh(self:getChunk(cx,cy-1,cz), true) end
+    if lz >= size-1 then self:requestRemesh(self:getChunk(cx,cy,cz+1), true) end
+    if lz <= 0      then self:requestRemesh(self:getChunk(cx,cy,cz-1), true) end
+    if not neighboursFirst then
+        self:requestRemesh(chunk, true)
     end
 end
 

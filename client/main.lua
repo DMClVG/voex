@@ -14,7 +14,6 @@ common = require "common"
 
 require "scenes.gameworld"
 require "physics"
-require "box"
 packets = require "packets"
 
 local world
@@ -74,45 +73,30 @@ function onPeerReceive(peer, _, data)
         world:addChunk(loex.Chunk.fromPacket(data))
     elseif data.type == "broken" then
         local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-        local chunk = world:getChunkFromWorld(x, y, z)
-        assert(chunk)
+        local hash = ("%d/%d/%d"):format(x, y, z)
+        if not world.breakQueue[hash] then
+            world:setBlockAndRemesh(x, y, z, loex.Tiles.air.id, true)
+        end
+        world.breakQueue[hash] = nil
 
-        local size = chunk.size
-        local lx, ly, lz = x%size, y%size, z%size
-        local cx, cy, cz = chunk.cx, chunk.cy, chunk.cz
-        chunk:setBlock(lx, ly, lz, loex.Tiles.air.id)
-
-        world:requestRemesh(chunk, true)
-        if lx >= size-1 then world:requestRemesh(world:getChunk(cx+1,cy,cz), true) end
-        if lx <= 0      then world:requestRemesh(world:getChunk(cx-1,cy,cz), true) end
-        if ly >= size-1 then world:requestRemesh(world:getChunk(cx,cy+1,cz), true) end
-        if ly <= 0      then world:requestRemesh(world:getChunk(cx,cy-1,cz), true) end
-        if lz >= size-1 then world:requestRemesh(world:getChunk(cx,cy,cz+1), true) end
-        if lz <= 0      then world:requestRemesh(world:getChunk(cx,cy,cz-1), true) end
     elseif data.type == "placed" then
         local x, y, z, t = tonumber(data.x), tonumber(data.y), tonumber(data.z), tonumber(data.t)
-        local chunk = world:getChunkFromWorld(x, y, z)
-        assert(chunk)
+        local hash = ("%d/%d/%d"):format(x, y, z)
+        if not world.placeQueue[hash] then
+            world:setBlockAndRemesh(x, y, z, t)
+        end
+        world.placeQueue[hash] = nil
 
-        local size = chunk.size
-        local lx, ly, lz = x%size, y%size, z%size
-        local cx, cy, cz = chunk.cx, chunk.cy, chunk.cz
-        chunk:setBlock(lx, ly, lz,t)
-
-        if lx >= size-1 then world:requestRemesh(world:getChunk(cx+1,cy,cz), true) end
-        if lx <= 0      then world:requestRemesh(world:getChunk(cx-1,cy,cz), true) end
-        if ly >= size-1 then world:requestRemesh(world:getChunk(cx,cy+1,cz), true) end
-        if ly <= 0      then world:requestRemesh(world:getChunk(cx,cy-1,cz), true) end
-        if lz >= size-1 then world:requestRemesh(world:getChunk(cx,cy,cz+1), true) end
-        if lz <= 0      then world:requestRemesh(world:getChunk(cx,cy,cz-1), true) end
-        world:requestRemesh(chunk, true)
-    elseif data.type == "entityMoved" and data.id ~= world.player.id then
+    elseif data.type == "entityMoved" then
         local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
         local entity = world:getEntity(data.id)
         assert(entity)
         entity.x = x
         entity.y = y
         entity.z = z
+
+        
+
     elseif data.type == "entityAdd" and data.id ~= world.player.id then
         local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
         world:addEntity(loex.entities[data.eType](x, y, z, data.id))

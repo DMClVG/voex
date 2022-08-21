@@ -56,9 +56,16 @@ function onPeerReceive(peer, user, data)
 
     if data.type == "move" then
         local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-        user.playerEntity.x = x
-        user.playerEntity.y = y
-        user.playerEntity.z = z
+
+        local player = user.playerEntity
+        local dx, dy, dz = x - player.x, y - player.y, z - player.z
+        if world:intersectWithWorld(loex.Utils.expand(player:getBox(), dx, dy, 0)) and world:intersectWithWorld(loex.Utils.expand(player:getBox(), 0, 0, dz)) then
+            peer:send(packets.EntityMoved(player.id, player.x, player.y, player.z)) -- correct movement
+        else
+            player.x = x
+            player.y = y
+            player.z = z
+        end
     elseif data.type == "break" then
         local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
         world:setBlockFromWorld(x, y, z, loex.Tiles.air.id)
@@ -66,12 +73,25 @@ function onPeerReceive(peer, user, data)
 
     elseif data.type == "place" then
         local x, y, z, t = tonumber(data.x), tonumber(data.y), tonumber(data.z), tonumber(data.t)
-        world:setBlockFromWorld(x, y, z, t)
-        net:broadcast(packets.Placed(x, y, z, t))
 
+        local collided = false
+        local intersect = loex.Utils.intersectBoxAndBox
+        for _, e in pairs(world:query(loex.entities.Player)) do
+            if intersect(e:getBox(), {x=x+0.5, y=y+0.5, z=z+0.5, w=0.5, h=0.5, d=0.5 }) then
+                collided = true
+                break
+            end
+        end
+        if not collided then
+            world:setBlockFromWorld(x, y, z, t)
+            net:broadcast(packets.Placed(x, y, z, t))
+        else
+            -- invalid placement
+        end
     elseif data.type == "join" then
         local player = loex.entities.Player(0, 0, 50)
         player.username = data.username
+        player.master = peer
         
         -- TODO: check if username valid
         print(player.username.. " joined the game :>")
@@ -109,7 +129,14 @@ function synchronizePositions()
             e.syncX = e.x
             e.syncY = e.y
             e.syncZ = e.z
-            net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ))
+
+            if e.master then
+                local dest = lume.clone(players)
+                lume.remove(dest, e.master)
+                net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ), 0, "reliable", dest)
+            else
+                net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ))
+            end
         end
     end
 end

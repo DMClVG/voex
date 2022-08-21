@@ -33,12 +33,31 @@ function Chunk.fromPacket(packet)
 end
 
 function Chunk:generate()
-    local f = 0.125
     local planks = loex.Tiles.planks.id
     local datapointer = self.datapointer
-    for i=0, size*size*size - 1 do
-        local x, y, z = i%size + self.x, math.floor(i/size)%size + self.y, math.floor(i/(size*size)) + self.z
-        datapointer[i] = love.math.noise(x*f,y*f,z*f) > (z+32)/64 and planks or 0
+    if false then
+        local f = 0.125
+        for i=0, size*size*size - 1 do
+            local x, y, z = i%size + self.x, math.floor(i/size)%size + self.y, math.floor(i/(size*size)) + self.z
+            datapointer[i] = love.math.noise(x*f,y*f,z*f) > (z+32)/64 and planks or 0
+        end
+    else
+        if self.cz <= 0 then
+            for k = 0, size-1 do
+                for i=0, size-1 do
+                    for j=0, size-1 do
+                        datapointer[i+j*size+k*size*size] = planks
+                    end
+                end
+            end
+        end
+        if self.cz == 1 then
+            for i=0, size-1 do
+                for j=0, size-1 do
+                    datapointer[i+j*size] = planks
+                end
+            end
+        end
     end
 end
 

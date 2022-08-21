@@ -33,6 +33,7 @@ assert(love, "this package needs löve!")
 Object = require(loex.lpath .. "lib.classic")
 lume = require(loex.lpath .. "lib.lume")
 
+loex.Utils = require(loex.lpath .. "utils")
 loex.Tiles = require(loex.lpath .. "tiles"):init()
 loex.Entity = require(loex.lpath .. "entity")
 loex.entities = require(loex.lpath .. "entities")
