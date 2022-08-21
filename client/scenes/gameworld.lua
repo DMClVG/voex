@@ -82,6 +82,8 @@ function GameWorld:onEntityRemoved(entity)
     print(entity.type .. " ".. entity.id .. " removed")
 end
 
+
+local netTimer = 0
 function GameWorld:onUpdated(dt)
 
     -- collect mouse inputs
@@ -263,7 +265,12 @@ function GameWorld:onUpdated(dt)
         p.vz = p.vz + jumpForce
     end
 
-    net.master:send(packets.Move(p.x, p.y, p.z))
+    local netInterval = 1/20
+    if netTimer >= netInterval then
+        net.master:send(packets.Move(p.x, p.y, p.z))
+        netTimer = 0
+    end
+    netTimer = netTimer + dt
 end
 
 function GameWorld:mousemoved(x, y, dx, dy)
