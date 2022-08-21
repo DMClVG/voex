@@ -18,6 +18,7 @@ require "box"
 packets = require "packets"
 
 local world
+local focused = false
 
 function love.load(args)
     if #args < 3 then
@@ -135,15 +136,26 @@ function love.draw()
     end
 end
 
+function love.mousepressed()
+    if not focus then
+        focus = true
+    end
+end
+
+function love.focus(hasFocus)
+    focus = hasFocus
+end
+
 function love.mousemoved(x, y, dx, dy)
-    if world then
+    if world and focus then
         world:mousemoved(x, y, dx, dy)
     end
 end
 
 function love.keypressed(k)
     if k == "escape" then
-        love.event.push "quit"
+        love.mouse.setRelativeMode(false)
+        focus = false
     end
 end
 
