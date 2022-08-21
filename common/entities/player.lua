@@ -1,4 +1,5 @@
 local Player = loex.Entity:extend()
+Player.type = "Player"
 
 function Player:update()
     

@@ -10,8 +10,14 @@ function World:new()
 end
 
 function World:update(dt)
-    for _, entity in pairs(self.entities) do
-        entity:update(dt)
+    local entities = self.entities
+    for id, entity in pairs(entities) do
+        if not entity.dead then
+            entity:update(dt)
+        else
+            entities[id] = nil
+            self:onEntityRemoved(entity)
+        end
     end
     self:onUpdated(dt)
 end
@@ -19,6 +25,7 @@ end
 function World:onUpdated(dt) --[[overload]] end
 function World:onChunkAdded(chunk) --[[overload]] end
 function World:onEntityAdded(entity) --[[overload]] end
+function World:onEntityRemoved(entity) --[[overload]] end
 function World:onTileChanged(x, y, z, value) --[[overload]] end
 
 function World:addEntity(entity)

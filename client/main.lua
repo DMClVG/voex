@@ -14,7 +14,7 @@ g3d = require "lib/g3d"
 require "scenes.gameworld"
 require "physics"
 require "box"
-require "packets"
+packets = require "packets"
 
 local world
 
@@ -104,8 +104,13 @@ function onPeerReceive(peer, _, data)
         if lz >= size-1 then world:requestRemesh(world:getChunk(cx,cy,cz+1), true) end
         if lz <= 0      then world:requestRemesh(world:getChunk(cx,cy,cz-1), true) end
         world:requestRemesh(chunk, true)
-    end
-
+    elseif data.type == "entityAdd" and data.id ~= world.player.id then
+        local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
+        world:addEntity(loex.entities[data.eType](x, y, z, data.id))
+    elseif data.type == "entityRemove" then
+        local entity = world:getEntity(data.id)
+        entity.dead = true
+    end 
 end
 
 function love.update(dt)

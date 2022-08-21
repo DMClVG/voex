@@ -88,11 +88,7 @@ function Network:service()
             self.onPeerDisconnect(peer, self.users[peer])
             self.users[peer] = nil
             
-            for i, e in ipairs(self.peers) do
-                if e == peer then
-                    table.remove(self.peers, i)
-                end
-            end
+            lume.remove(self.peers, peer)
         end
     end
 end

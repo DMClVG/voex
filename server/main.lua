@@ -4,6 +4,9 @@ common = require "common"
 enet = require "enet"
 
 ServerWorld = require "serverworld"
+packets = require "./packets"
+
+players = {}
 
 function love.load(args)
     if #args < 1 then
@@ -41,6 +44,8 @@ function onPeerDisconnect(peer, user)
         print("Peer disconnected!")
     else
         print(user.playerEntity.username.. " left the game :<")
+        user.playerEntity.dead = true
+        lume.remove(players, peer)
     end
 end
 
@@ -50,28 +55,34 @@ function onPeerReceive(peer, user, data)
     if data.type == "break" then
         local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
         world:setBlockFromWorld(x, y, z, loex.Tiles.air.id)
-        net:broadcast(("[type=broken;x=%d;y=%d;z=%d;]"):format(x, y, z))
+        net:broadcast(packets.Broken(x, y, z))
 
     elseif data.type == "place" then
         local x, y, z, t = tonumber(data.x), tonumber(data.y), tonumber(data.z), tonumber(data.t)
         world:setBlockFromWorld(x, y, z, t)
-        net:broadcast(("[type=placed;x=%d;y=%d;z=%d;t=%d;]"):format(x, y, z, t))
+        net:broadcast(packets.Placed(x, y, z, t))
 
     elseif data.type == "join" then
         local player = loex.entities.Player(0, 0, 50)
         player.username = data.username
-
+        
         -- TODO: check if username validity
         print(player.username.. " joined the game :>")
-
-        peer:send(("[type=joinSuccess;x=%d;y=%d;z=%d;id=%s;]"):format(player.x, player.y, player.z, player.id))
+        
+        peer:send(packets.JoinSuccess(player.id, player.x, player.y, player.z))
+        
+        world:addEntity(player)
 
         for _, chunk in pairs(world.chunks) do
-            peer:send(table.concat({ ("[type=chunk;cx=%d;cy=%d;cz=%d;]"):format(chunk.cx, chunk.cy, chunk.cz),
-                chunk.data:getString() }), 0, "unsequenced")
+            peer:send(packets.Chunk(chunk.data, chunk.cx, chunk.cy, chunk.cz), 0, "unsequenced")
+        end
+
+        for _, entity in pairs(world.entities) do
+            peer:send(packets.EntityAdd(entity.id, entity.type, entity.x, entity.y, entity.z))
         end
 
         user.playerEntity = player
+        table.insert(players, peer)
     else
         assert(false, "Unkown packet type: ".. data.type)
 

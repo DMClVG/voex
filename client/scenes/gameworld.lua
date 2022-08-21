@@ -74,6 +74,14 @@ function GameWorld:onChunkAdded(chunk)
     self:requestRemesh(self:getChunk(x,y,z-1))
 end
 
+function GameWorld:onEntityAdded(entity)
+    print(entity.type .. " ".. entity.id .. " added")
+end
+
+function GameWorld:onEntityRemoved(entity)
+    print(entity.type .. " ".. entity.id .. " removed")
+end
+
 function GameWorld:onUpdated(dt)
 
     -- collect mouse inputs
