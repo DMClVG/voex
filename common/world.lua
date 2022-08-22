@@ -29,8 +29,9 @@ function World:onEntityRemoved(entity) --[[overload]] end
 function World:onTileChanged(x, y, z, value) --[[overload]] end
 
 function World:addEntity(entity)
-    assert(self.entities[entity.id] == nil)
+    assert(self.entities.world == nil)
     self.entities[entity.id] = entity
+    entity.world = self
     self:onEntityAdded(entity)
 end
 

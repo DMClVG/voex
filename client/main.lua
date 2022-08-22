@@ -16,8 +16,9 @@ require "scenes.gameworld"
 require "physics"
 packets = require "packets"
 
-local world
 local focused = false
+
+local netHandler = require "nethandler"
 
 function love.load(args)
     if #args < 3 then
@@ -33,7 +34,6 @@ function love.load(args)
     net.onPeerConnect = onPeerConnect
     net.onPeerDisconnect = onPeerDisconnect
     net.onPeerReceive = onPeerReceive
-
 end
 
 function onPeerConnect(peer, _)
@@ -58,56 +58,17 @@ function onPeerReceive(peer, _, data)
     -- end
     print("Received ".. data.type)
 
-    if data.type == "joinSuccess" then
-        local spawnX, spawnY, spawnZ = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-        local playerID = data.id
-        local playerEntity = loex.entities.Player(spawnX, spawnY, spawnZ, playerID)
-        
-        print(("Joined under username ".. username .. " (ID: " .. playerID .. ") at spawn point %d, %d, %d"):format(spawnX, spawnY, spawnZ))
-
-        loex.World.singleton = GameWorld(playerEntity)
-        world = loex.World.singleton
+    local handle = netHandler[data.type]
+    if not handle then
+        error("Unkown packet type "..data.type)
+    else
+        handle(data, net, loex.World.singleton)
     end
-
-    if data.type == "chunk" then
-        world:addChunk(loex.Chunk.fromPacket(data))
-    elseif data.type == "broken" then
-        local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-        local hash = ("%d/%d/%d"):format(x, y, z)
-        if not world.breakQueue[hash] then
-            world:setBlockAndRemesh(x, y, z, loex.Tiles.air.id, true)
-        end
-        world.breakQueue[hash] = nil
-
-    elseif data.type == "placed" then
-        local x, y, z, t = tonumber(data.x), tonumber(data.y), tonumber(data.z), tonumber(data.t)
-        local hash = ("%d/%d/%d"):format(x, y, z)
-        if not world.placeQueue[hash] then
-            world:setBlockAndRemesh(x, y, z, t)
-        end
-        world.placeQueue[hash] = nil
-
-    elseif data.type == "entityMoved" then
-        local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-        local entity = world:getEntity(data.id)
-        assert(entity)
-        entity.x = x
-        entity.y = y
-        entity.z = z
-
-        
-
-    elseif data.type == "entityAdd" and data.id ~= world.player.id then
-        local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-        world:addEntity(loex.entities[data.eType](x, y, z, data.id))
-    elseif data.type == "entityRemove" then
-        local entity = world:getEntity(data.id)
-        entity.dead = true
-    end 
 end
 
 function love.update(dt)
     net:service()
+    local world = loex.World.singleton
 
     if world then
         world:update(dt)
@@ -115,23 +76,27 @@ function love.update(dt)
 end
 
 function love.draw()
+    local world = loex.World.singleton
+
     if world then
         world:draw()
     end
 end
 
 function love.mousepressed()
-    if not focus then
-        focus = true
+    if not focused then
+        focused = true
     end
 end
 
 function love.focus(hasFocus)
-    focus = hasFocus
+    focused = hasFocus
 end
 
 function love.mousemoved(x, y, dx, dy)
-    if world and focus then
+    local world = loex.World.singleton
+
+    if world and focused then
         world:mousemoved(x, y, dx, dy)
     end
 end
@@ -139,7 +104,7 @@ end
 function love.keypressed(k)
     if k == "escape" then
         love.mouse.setRelativeMode(false)
-        focus = false
+        focused = false
     end
 end
 

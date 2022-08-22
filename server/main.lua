@@ -6,6 +6,7 @@ common = require "common"
 enet = require "enet"
 
 ServerWorld = require "serverworld"
+ServerPlayer = require "serverplayer"
 packets = require "./packets"
 
 players = {}
@@ -54,65 +55,32 @@ end
 function onPeerReceive(peer, user, data)
     print("Received "..data.type)
 
-    if data.type == "move" then
-        local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-
-        local player = user.playerEntity
-        local dx, dy, dz = x - player.x, y - player.y, z - player.z
-        if world:intersectWithWorld(loex.Utils.expand(player:getBox(), dx, dy, 0)) and world:intersectWithWorld(loex.Utils.expand(player:getBox(), 0, 0, dz)) then
-            peer:send(packets.EntityMoved(player.id, player.x, player.y, player.z)) -- correct movement
-        else
-            player.x = x
-            player.y = y
-            player.z = z
-        end
-    elseif data.type == "break" then
-        local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-        world:setBlockFromWorld(x, y, z, loex.Tiles.air.id)
-        net:broadcast(packets.Broken(x, y, z))
-
-    elseif data.type == "place" then
-        local x, y, z, t = tonumber(data.x), tonumber(data.y), tonumber(data.z), tonumber(data.t)
-
-        local collided = false
-        local intersect = loex.Utils.intersectBoxAndBox
-        for _, e in pairs(world:query(loex.entities.Player)) do
-            if intersect(e:getBox(), {x=x+0.5, y=y+0.5, z=z+0.5, w=0.5, h=0.5, d=0.5 }) then
-                collided = true
-                break
+    if user.playerEntity == nil then
+        if data.type == "Join" then
+            local player = ServerPlayer(0, 0, 50)
+            player.username = data.username
+            player.master = peer
+            
+            -- TODO: check if username valid
+            print(player.username.. " joined the game :>")
+            
+            peer:send(packets.JoinSucceeded(player.id, player.x, player.y, player.z))
+            
+            world:addEntity(player)
+    
+            for _, chunk in pairs(world.chunks) do
+                peer:send(packets.Chunk(chunk.data, chunk.cx, chunk.cy, chunk.cz), 0, "unsequenced")
             end
+    
+            for _, entity in pairs(world.entities) do
+                peer:send(packets.EntityAdded(entity.id, entity.type, entity.x, entity.y, entity.z))
+            end
+    
+            user.playerEntity = player
+            table.insert(players, peer)
         end
-        if not collided then
-            world:setBlockFromWorld(x, y, z, t)
-            net:broadcast(packets.Placed(x, y, z, t))
-        else
-            -- invalid placement
-        end
-    elseif data.type == "join" then
-        local player = loex.entities.Player(0, 0, 50)
-        player.username = data.username
-        player.master = peer
-        
-        -- TODO: check if username valid
-        print(player.username.. " joined the game :>")
-        
-        peer:send(packets.JoinSuccess(player.id, player.x, player.y, player.z))
-        
-        world:addEntity(player)
-
-        for _, chunk in pairs(world.chunks) do
-            peer:send(packets.Chunk(chunk.data, chunk.cx, chunk.cy, chunk.cz), 0, "unsequenced")
-        end
-
-        for _, entity in pairs(world.entities) do
-            peer:send(packets.EntityAdd(entity.id, entity.type, entity.x, entity.y, entity.z))
-        end
-
-        user.playerEntity = player
-        table.insert(players, peer)
     else
-        assert(false, "Unkown packet type: ".. data.type)
-
+        user.playerEntity["P"..data.type](user.playerEntity, data)
     end
 end
 
