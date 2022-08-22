@@ -7,6 +7,7 @@ lg.setDefaultFilter "nearest"
 io.stdout:setvbuf "no"
 
 g3d = require "lib/g3d"
+scene = require "lib/scene"
 enet = require "enet"
 
 common = require "common"
@@ -14,6 +15,7 @@ common = require "common"
 
 require "scenes.gameworld"
 require "physics"
+
 packets = require "packets"
 
 local focused = false
@@ -34,6 +36,8 @@ function love.load(args)
     net.onPeerConnect = onPeerConnect
     net.onPeerDisconnect = onPeerDisconnect
     net.onPeerReceive = onPeerReceive
+
+    scene(require("scenes/joinScreen"))
 end
 
 function onPeerConnect(peer, _)
@@ -68,18 +72,17 @@ end
 
 function love.update(dt)
     net:service()
-    local world = loex.World.singleton
 
-    if world then
-        world:update(dt)
+    local scene = scene()
+    if scene then
+        scene:update(dt)
     end
 end
 
 function love.draw()
-    local world = loex.World.singleton
-
-    if world then
-        world:draw()
+    local scene = scene()
+    if scene then
+        scene:draw()
     end
 end
 
@@ -94,10 +97,9 @@ function love.focus(hasFocus)
 end
 
 function love.mousemoved(x, y, dx, dy)
-    local world = loex.World.singleton
-
-    if world and focused then
-        world:mousemoved(x, y, dx, dy)
+    local scene = scene()
+    if scene and focused then
+        scene:mousemoved(x, y, dx, dy)
     end
 end
 

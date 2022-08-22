@@ -4,6 +4,10 @@ function packets.JoinSucceeded(id, x, y, z)
     return ("[type=JoinSucceeded;x=%d;y=%d;z=%d;id=%s;]"):format(x, y, z, id)
 end
 
+function packets.JoinFailed(cause)
+    return ("[type=JoinFailed;cause=%s;]"):format(cause)
+end
+
 function packets.Chunk(tiles, cx, cy, cz)
     return table.concat({ ("[type=Chunk;cx=%d;cy=%d;cz=%d;]"):format(cx, cy, cz), tiles:getString() })
 end
@@ -27,5 +31,6 @@ end
 function packets.EntityMoved(id, x, y, z)
     return ("[type=EntityMoved;x=%f;y=%f;z=%f;id=%s;]"):format(x, y, z, id)
 end
+
 
 return packets

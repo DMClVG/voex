@@ -11,6 +11,11 @@ packets = require "./packets"
 
 players = {}
 
+banlist = { 
+    pokemad=true
+}
+takenUsernames = {}
+
 function love.load(args)
     if #args < 1 then
         print("please supply port number to start server on")
@@ -49,6 +54,7 @@ function onPeerDisconnect(peer, user)
         print(user.playerEntity.username.. " left the game :<")
         user.playerEntity.dead = true
         lume.remove(players, peer)
+        takenUsernames[user.playerEntity.username] = nil
     end
 end
 
@@ -57,11 +63,19 @@ function onPeerReceive(peer, user, data)
 
     if user.playerEntity == nil then
         if data.type == "Join" then
+            
+            local err = verifyJoin(data.username)
+            if err then
+                peer:send(packets.JoinFailed(err))
+                peer:disconnect_later()
+                return
+            end
+
             local player = ServerPlayer(0, 0, 50)
             player.username = data.username
             player.master = peer
+            takenUsernames[player.username] = true
             
-            -- TODO: check if username valid
             print(player.username.. " joined the game :>")
             
             peer:send(packets.JoinSucceeded(player.id, player.x, player.y, player.z))
@@ -106,5 +120,29 @@ function synchronizePositions()
                 net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ))
             end
         end
+    end
+end
+
+function verifyJoin(username)
+    local validUsername = "^[a-zA-Z_]+$"
+
+    if banlist[username] then
+        return "You're banned from this server. Cry about it :-("
+    end
+
+    if #username < 3 then
+        return "Username too short"
+    end
+
+    if #username > 15 then
+        return "Username too long"
+    end
+
+    if not username:match(validUsername) then
+        return ("Invalid username (It has to be good)")
+    end
+
+    if takenUsernames[username] then
+        return "Username already taken. Try again :)"
     end
 end

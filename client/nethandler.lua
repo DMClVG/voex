@@ -8,6 +8,11 @@ function netHandler.JoinSucceeded(data, net, world)
     print(("Joined under username ".. username .. " (ID: " .. playerID .. ") at spawn point %d, %d, %d"):format(spawnX, spawnY, spawnZ))
 
     loex.World.singleton = GameWorld(playerEntity)
+    scene(loex.World.singleton)
+end
+
+function netHandler.JoinFailed(data, net, world)
+    scene(require("scenes/joinFailedScreen"), data.cause)
 end
 
 function netHandler.Chunk(data, net, world)
