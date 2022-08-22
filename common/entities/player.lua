@@ -27,7 +27,6 @@ end
 local g = love.graphics
 function Player:draw()
     if self.usernameTag == nil then
-        print(font:getHeight())
         local canvas = g.newCanvas(font:getWidth(self.username), font:getHeight())
         g.setCanvas(canvas)
         g.setFont(font)
