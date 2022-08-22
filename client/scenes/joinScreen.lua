@@ -2,7 +2,6 @@ local JoinScreen = {}
 local g = love.graphics
 
 function JoinScreen:init()
-    g.setNewFont(20)
 end
 
 function JoinScreen:update(dt)
