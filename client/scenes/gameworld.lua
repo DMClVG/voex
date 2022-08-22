@@ -289,7 +289,12 @@ function GameWorld:onUpdated(dt)
 
     local netInterval = 1/20
     if netTimer >= netInterval then
-        net.master:send(packets.Move(p.x, p.y, p.z))
+        if p.syncX == nil or p.syncX ~= p.x or p.syncY ~= p.y or p.syncZ ~= p.z then
+            p.syncX = p.x
+            p.syncY = p.y
+            p.syncZ = p.z
+            net.master:send(packets.Move(p.x, p.y, p.z))
+        end
         netTimer = 0
     end
     netTimer = netTimer + dt
