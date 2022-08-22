@@ -321,11 +321,13 @@ function GameWorld:draw()
         blockCursor:draw()
         lg.setWireframe(false)
     end
-    lg.setMeshCullMode("back")
-
+    
+    lg.setColor(1,1,1)
     for _, entity in pairs(self.entities) do
         entity:draw()
     end
+    
+    lg.setMeshCullMode("back")
 end
 
 function GameWorld:setBlockAndRemesh(x, y, z, t, neighboursFirst)
