@@ -4,7 +4,8 @@ function netHandler.JoinSucceeded(data, net, world)
     local spawnX, spawnY, spawnZ = tonumber(data.x), tonumber(data.y), tonumber(data.z)
     local playerID = data.id
     local playerEntity = loex.entities.Player(spawnX, spawnY, spawnZ, playerID)
-    
+    playerEntity.username = username
+
     print(("Joined under username ".. username .. " (ID: " .. playerID .. ") at spawn point %d, %d, %d"):format(spawnX, spawnY, spawnZ))
 
     loex.World.singleton = GameWorld(playerEntity)
@@ -50,7 +51,9 @@ function netHandler.EntityAdded(data, net, world)
     if data.id == world.player.id then return end
 
     local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-    world:addEntity(loex.entities[data.eType](x, y, z, data.id))
+    local entity = loex.entities[data.eType](x, y, z, data.id)
+    entity:remoteSpawn(data)
+    world:addEntity(entity)
 end
 
 function netHandler.EntityRemoved(data, net, world)

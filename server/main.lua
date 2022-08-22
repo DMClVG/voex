@@ -87,7 +87,7 @@ function onPeerReceive(peer, user, data)
             end
     
             for _, entity in pairs(world.entities) do
-                peer:send(packets.EntityAdded(entity.id, entity.type, entity.x, entity.y, entity.z))
+                peer:send(packets.EntityAdded(entity.id, entity.type, entity.x, entity.y, entity.z, entity:remoteExtras()))
             end
     
             user.playerEntity = player

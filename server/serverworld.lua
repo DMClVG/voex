@@ -6,7 +6,7 @@ function ServerWorld:new(net)
 end
 
 function ServerWorld:onEntityAdded(entity)
-    net:broadcast(packets.EntityAdded(entity.id, entity.type, entity.x, entity.y, entity.z), 0, "reliable", players)
+    net:broadcast(packets.EntityAdded(entity.id, entity.type, entity.x, entity.y, entity.z, entity:remoteExtras()), 0, "reliable", players)
     print(entity.type .. " ".. entity.id .. " added")
 end
 

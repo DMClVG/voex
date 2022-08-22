@@ -20,8 +20,21 @@ function packets.Broken(x, y, z)
     return ("[type=Broken;x=%d;y=%d;z=%d;]"):format(x, y, z)
 end
 
-function packets.EntityAdded(id, type, x, y, z)
-    return ("[type=EntityAdded;eType=%s;x=%f;y=%f;z=%f;id=%s;]"):format(type, x, y, z, id)
+function packets.EntityAdded(id, type, x, y, z, extra)
+    local packet = ("type=EntityAdded;eType=%s;x=%f;y=%f;z=%f;id=%s;"):format(type, x, y, z, id)
+
+    local extrapacket = {}
+    if extra then
+        for k, v in pairs(extra) do
+            table.insert(extrapacket, k)
+            table.insert(extrapacket, "=")
+            table.insert(extrapacket, tostring(v))
+            table.insert(extrapacket, ";")
+        end
+    end
+    local extrapacket = table.concat(extrapacket)
+
+    return table.concat({"[", packet, extrapacket, "]"})
 end
 
 function packets.EntityRemoved(id)

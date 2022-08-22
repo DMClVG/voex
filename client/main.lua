@@ -37,6 +37,9 @@ function love.load(args)
     net.onPeerDisconnect = onPeerDisconnect
     net.onPeerReceive = onPeerReceive
 
+    font = love.graphics.newFont(50)
+    love.graphics.setFont(font)
+
     scene(require("scenes/joinScreen"))
 end
 

@@ -3,7 +3,6 @@ local g = love.graphics
 
 local msg
 function JoinFailedScreen:init(cause)
-    g.setNewFont(20)
     msg = cause
 end
 

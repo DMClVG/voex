@@ -7,13 +7,10 @@ function Entity:new(x, y, z, id)
     self.dead = false
 end
 
-function Entity:update(dt)
-
-end
-
-function Entity:draw()
-
-end
+function Entity:remoteSpawn(data) end
+function Entity:remoteExtras() end
+function Entity:update(dt) end
+function Entity:draw() end
 
 function Entity:__tostring()
     return Entity.type
