@@ -11,9 +11,7 @@ packets = require "./packets"
 
 players = {}
 
-banlist = { 
-    pokemad=true
-}
+banlist = { }
 takenUsernames = {}
 
 function love.load(args)
