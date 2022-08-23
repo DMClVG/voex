@@ -147,11 +147,11 @@ function GameWorld:onUpdated(dt)
             threadchannels[channel] = nil
             if chunk.model then chunk.model.mesh:release() end
             chunk.model = nil
+            chunk.inRemeshQueue = false
             if data.count > 0 then
                 chunk.model = g3d.newModel(data.count, texturepack)
                 chunk.model.mesh:setVertices(data.data)
                 chunk.model:setTranslation(chunk.x, chunk.y, chunk.z)
-                chunk.inRemeshQueue = false
                 break
             end
         end
