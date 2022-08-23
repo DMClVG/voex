@@ -234,12 +234,23 @@ function GameWorld:onUpdated(dt)
     local placedBlock = 1
 
     -- right click to place blocks
-    if rightClick and buildx and not loex.Utils.intersectBoxAndBox({x=buildx+0.5, y=buildy+0.5, z=buildz+0.5, w=0.5, h=0.5, d=0.5}, pbox) then
-        local chunk = self:getChunkFromWorld(buildx, buildy, buildz)
-        if chunk then
-            self.placeQueue[("%d/%d/%d"):format(buildx, buildy, buildz)] = { x=buildx,y=buildy,z=buildz,timeStamp=love.timer.getTime() }
-            net.master:send(packets.Place(buildx, buildy, buildz, placedBlock), CHANNEL_EVENTS, "reliable")
-            self:setBlockAndRemesh(buildx, buildy, buildz, placedBlock)
+    if rightClick and buildx then
+        local cube = {x=buildx+0.5, y=buildy+0.5, z=buildz+0.5, w=0.5, h=0.5, d=0.5}
+        local collided = false
+        for _, e in pairs(self:query(loex.entities.Player)) do
+            if loex.Utils.intersectBoxAndBox(cube, e:getBox()) then
+                collided = true
+                break
+            end
+        end
+
+        if not collided then
+            local chunk = self:getChunkFromWorld(buildx, buildy, buildz)
+            if chunk then
+                self.placeQueue[("%d/%d/%d"):format(buildx, buildy, buildz)] = { x=buildx,y=buildy,z=buildz,timeStamp=love.timer.getTime() }
+                net.master:send(packets.Place(buildx, buildy, buildz, placedBlock), CHANNEL_EVENTS, "reliable")
+                self:setBlockAndRemesh(buildx, buildy, buildz, placedBlock)
+            end
         end
     end
 
