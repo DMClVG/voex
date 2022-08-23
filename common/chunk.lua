@@ -1,4 +1,4 @@
-local size = 12
+local size = 16
 local ffi = require "ffi"
 
 local Chunk = Object:extend()
