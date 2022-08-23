@@ -56,7 +56,7 @@ function onPeerConnect(peer, _)
 end
 
 function onPeerDisconnect(peer, _)
-    print("Disconnected!")
+    scene(require("scenes/disconnectedScreen"))
 end
 
 function onPeerReceive(peer, _, data)

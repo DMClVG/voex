@@ -107,6 +107,12 @@ function love.update(dt)
     synchronizePositions()
 end
 
+function love.quit()
+    if net then
+        net:disconnect()
+    end
+end
+
 function synchronizePositions()
     local entities = world.entities
     for _, e in pairs(entities) do
