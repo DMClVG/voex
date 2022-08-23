@@ -247,7 +247,7 @@ function GameWorld:onUpdated(dt)
         if not collided then
             local chunk = self:getChunkFromWorld(buildx, buildy, buildz)
             if chunk then
-                self.placeQueue[("%d/%d/%d"):format(buildx, buildy, buildz)] = { x=buildx,y=buildy,z=buildz,timeStamp=love.timer.getTime() }
+                self.placeQueue[("%d/%d/%d"):format(buildx, buildy, buildz)] = { x=buildx,y=buildy,z=buildz,timeStamp=love.timer.getTime(),placed=placedBlock }
                 net.master:send(packets.Place(buildx, buildy, buildz, placedBlock), CHANNEL_EVENTS, "reliable")
                 self:setBlockAndRemesh(buildx, buildy, buildz, placedBlock)
             end

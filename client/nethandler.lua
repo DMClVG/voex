@@ -32,7 +32,7 @@ end
 function netHandler.Placed(data, net, world)
     local x, y, z, t = tonumber(data.x), tonumber(data.y), tonumber(data.z), tonumber(data.t)
     local hash = ("%d/%d/%d"):format(x, y, z)
-    if not world.placeQueue[hash] then
+    if not world.placeQueue[hash] or world.placeQueue[hash].placed ~= t then
         world:setBlockAndRemesh(x, y, z, t)
     end
     world.placeQueue[hash] = nil
