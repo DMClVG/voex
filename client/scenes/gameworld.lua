@@ -220,7 +220,7 @@ function GameWorld:onUpdated(dt)
 
                 if leftClick then
                     self.breakQueue[("%d/%d/%d"):format(bx, by, bz)] = { x=bx,y=by,z=bz,timeStamp=love.timer.getTime(), prev=tile }
-                    net.master:send(packets.Break(bx, by, bz))
+                    net.master:send(packets.Break(bx, by, bz), CHANNEL_EVENTS, "reliable")
                     self:setBlockAndRemesh(bx, by, bz, 0, true)
                 end
 
@@ -238,7 +238,7 @@ function GameWorld:onUpdated(dt)
         local chunk = self:getChunkFromWorld(buildx, buildy, buildz)
         if chunk then
             self.placeQueue[("%d/%d/%d"):format(buildx, buildy, buildz)] = { x=buildx,y=buildy,z=buildz,timeStamp=love.timer.getTime() }
-            net.master:send(packets.Place(buildx, buildy, buildz, placedBlock))
+            net.master:send(packets.Place(buildx, buildy, buildz, placedBlock), CHANNEL_EVENTS, "reliable")
             self:setBlockAndRemesh(buildx, buildy, buildz, placedBlock)
         end
     end
@@ -293,7 +293,7 @@ function GameWorld:onUpdated(dt)
             p.syncX = p.x
             p.syncY = p.y
             p.syncZ = p.z
-            net.master:send(packets.Move(p.x, p.y, p.z))
+            net.master:send(packets.Move(p.x, p.y, p.z), CHANNEL_UPDATES, "unreliable")
         end
         netTimer = 0
     end

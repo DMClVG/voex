@@ -22,6 +22,10 @@ local focused = false
 
 local netHandler = require "nethandler"
 
+CHANNEL_ONE = 0
+CHANNEL_EVENTS = 1
+CHANNEL_UPDATES = 2
+
 function love.load(args)
     if #args < 3 then
         print("Usage: client [address] [port] [username]")
@@ -48,7 +52,7 @@ function onPeerConnect(peer, _)
 
     net.master = peer
 
-    net.master:send(packets.Join(username))
+    net.master:send(packets.Join(username), CHANNEL_ONE)
 end
 
 function onPeerDisconnect(peer, _)

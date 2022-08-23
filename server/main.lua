@@ -14,6 +14,11 @@ players = {}
 banlist = { }
 takenUsernames = {}
 
+CHANNEL_ONE = 0
+CHANNEL_CHUNKS = 1
+CHANNEL_EVENTS = 3
+CHANNEL_UPDATES = 4
+
 function love.load(args)
     if #args < 1 then
         print("please supply port number to start server on")
@@ -23,15 +28,15 @@ function love.load(args)
     port = tonumber(args[1])
     print("starting server on port " .. tostring(port) .. "...")
 
-    net = loex.Network.host(port)
+    net = loex.Network.host(port, 64)
     net.onPeerConnect = onPeerConnect
     net.onPeerDisconnect = onPeerDisconnect
     net.onPeerReceive = onPeerReceive
 
     world = ServerWorld(net)
 
-    for i = -3, 3 do
-        for j = -3, 3 do
+    for i = -6, 6 do
+        for j = -6, 6 do
             for k = -3, 3 do
                 local chunk = common.Chunk(i, j, k)
                 chunk:generate()
@@ -64,7 +69,7 @@ function onPeerReceive(peer, user, data)
             
             local err = verifyJoin(data.username)
             if err then
-                peer:send(packets.JoinFailed(err))
+                peer:send(packets.JoinFailed(err), CHANNEL_ONE)
                 peer:disconnect_later()
                 return
             end
@@ -76,16 +81,16 @@ function onPeerReceive(peer, user, data)
             
             print(player.username.. " joined the game :>")
             
-            peer:send(packets.JoinSucceeded(player.id, player.x, player.y, player.z))
+            peer:send(packets.JoinSucceeded(player.id, player.x, player.y, player.z), CHANNEL_ONE)
             
             world:addEntity(player)
     
             for _, chunk in pairs(world.chunks) do
-                peer:send(packets.Chunk(chunk.data, chunk.cx, chunk.cy, chunk.cz), 0, "unsequenced")
+                peer:send(packets.Chunk(chunk.data, chunk.cx, chunk.cy, chunk.cz), CHANNEL_CHUNKS, "reliable")
             end
     
             for _, entity in pairs(world.entities) do
-                peer:send(packets.EntityAdded(entity.id, entity.type, entity.x, entity.y, entity.z, entity:remoteExtras()))
+                peer:send(packets.EntityAdded(entity.id, entity.type, entity.x, entity.y, entity.z, entity:remoteExtras()), CHANNEL_EVENTS, "reliable")
             end
     
             user.playerEntity = player
@@ -113,9 +118,9 @@ function synchronizePositions()
             if e.master then
                 local dest = lume.clone(players)
                 lume.remove(dest, e.master)
-                net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ), 0, "reliable", dest)
+                net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ), CHANNEL_UPDATES, "unreliable", dest)
             else
-                net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ))
+                net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ), CHANNEL_UPDATES, "unreliable")
             end
         end
     end

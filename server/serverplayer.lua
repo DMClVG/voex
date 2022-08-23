@@ -5,7 +5,7 @@ function ServerPlayer:PMove(data)
 
     local dx, dy, dz = x - self.x, y - self.y, z - self.z
     if self.world:intersectWithWorld(loex.Utils.expand(self:getBox(), dx, dy, 0)) and self.world:intersectWithWorld(loex.Utils.expand(self:getBox(), 0, 0, dz)) then
-        self.master:send(packets.EntityMoved(self.id, self.x, self.y, self.z)) -- correct movement
+        self.master:send(packets.EntityMoved(self.id, self.x, self.y, self.z), CHANNEL_UPDATES, "reliable") -- correct movement
     else
         self.x = x
         self.y = y
@@ -16,7 +16,7 @@ end
 function ServerPlayer:PBreak(data)
     local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
     self.world:setBlockFromWorld(x, y, z, loex.Tiles.air.id)
-    net:broadcast(packets.Broken(x, y, z))
+    net:broadcast(packets.Broken(x, y, z), CHANNEL_EVENTS, "reliable")
 end
 
 function ServerPlayer:PPlace(data)
@@ -32,7 +32,7 @@ function ServerPlayer:PPlace(data)
     end
     if not collided then
         self.world:setBlockFromWorld(x, y, z, t)
-        net:broadcast(packets.Placed(x, y, z, t))
+        net:broadcast(packets.Placed(x, y, z, t), CHANNEL_EVENTS, "reliable")
     else
         -- invalid placement
     end

@@ -11,9 +11,19 @@ function Network:new(enet)
     self.onPeerReceive = function(peer, user, data) end
 end
 
-function Network.host(port)
-    local enet = enet.host_create(("localhost:%d"):format(port))
+local CHANNEL_COUNT = 5
+
+function Network.host(port, max_peers)
+    local enet = enet.host_create(("localhost:%d"):format(port), max_peers, CHANNEL_COUNT)
     enet:compress_with_range_coder()    
+    return Network(enet)
+end
+
+function Network.connect(address)
+    local enet = enet.host_create(nil, 1)
+    enet:compress_with_range_coder()
+    enet:connect(address, CHANNEL_COUNT)
+
     return Network(enet)
 end
 
@@ -24,13 +34,6 @@ function Network:broadcast(data, channel, mode, dest)
     end
 end
 
-function Network.connect(address)
-    local enet = enet.host_create()
-    enet:compress_with_range_coder()
-    enet:connect(address)
-
-    return Network(enet)
-end
 
 local function decodePacket(packet)
     local bytedata = love.data.newByteData(packet)
