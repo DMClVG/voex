@@ -1,12 +1,15 @@
 GameWorld = loex.World:extend()
 local Chunk = loex.Chunk
 local size = Chunk.size
+
 local threadpool = {}
+local threadusage = 0
 -- load up some threads so that chunk meshing won't block the main thread
 for i=1, 8 do
     threadpool[i] = love.thread.newThread "scenes/chunkremesh.lua"
 end
 local threadchannels = {}
+
 local texturepack = lg.newImage "assets/texturepack.png"
 local wasLeftDown, wasRightDown, rightDown, leftDown
 
@@ -130,12 +133,7 @@ function GameWorld:onUpdated(dt)
     -- end
 
     -- count how many threads are being used right now
-    local threadusage = 0
     for _, thread in ipairs(threadpool) do
-        if thread:isRunning() then
-            threadusage = threadusage + 1
-        end
-
         local err = thread:getError()
         assert(not err, err)
     end
@@ -152,21 +150,19 @@ function GameWorld:onUpdated(dt)
                 chunk.model = g3d.newModel(data.count, texturepack)
                 chunk.model.mesh:setVertices(data.data)
                 chunk.model:setTranslation(chunk.x, chunk.y, chunk.z)
-                break
             end
+            threadusage = threadusage - 1 -- free up thread
         end
     end
 
     -- remesh the chunks in the queue
-    -- NOTE: if this happens multiple times in a frame, weird things can happen? idk why
-    if threadusage < #threadpool and #self.remeshQueue > 0 then
-        local chunk
-        local ok = false
-        repeat
-            chunk = table.remove(self.remeshQueue, 1)
-        until not chunk or self.chunks[chunk.hash]
+    --[[NOTE: if this happens multiple times in a frame, weird things can happen? idk why 
+        NOTE(DMClVG): This was because chunks inside this loop that couldn't find a thread (due to the fact that threadusage was only recalculated every frame, and not on every started thread),
+        weren't reinserted after being removed from the queue and were effectively lost ]]
+    while threadusage < #threadpool and #self.remeshQueue > 0 do
+        local chunk = self.remeshQueue[1]
 
-        if chunk and not chunk.dead then
+        if chunk and not chunk.dead and self.chunks[chunk.hash] then
             for _, thread in ipairs(threadpool) do
                 if not thread:isRunning() then
                     -- send over the neighboring chunks to the thread
@@ -174,23 +170,27 @@ function GameWorld:onUpdated(dt)
                     local x, y, z = chunk.cx, chunk.cy, chunk.cz
                     local neighbor, n1, n2, n3, n4, n5, n6
                     neighbor = self:getChunk(x+1,y,z)
-                    if neighbor and not neighbor.dead then n1 = neighbor.data end
+                    if neighbor and not neighbor.dead then n1 = neighbor.data else assert(false) end
                     neighbor = self:getChunk(x-1,y,z)
-                    if neighbor and not neighbor.dead then n2 = neighbor.data end
+                    if neighbor and not neighbor.dead then n2 = neighbor.data else assert(false) end
                     neighbor = self:getChunk(x,y+1,z)
-                    if neighbor and not neighbor.dead then n3 = neighbor.data end
+                    if neighbor and not neighbor.dead then n3 = neighbor.data else assert(false) end
                     neighbor = self:getChunk(x,y-1,z)
-                    if neighbor and not neighbor.dead then n4 = neighbor.data end
+                    if neighbor and not neighbor.dead then n4 = neighbor.data else assert(false) end
                     neighbor = self:getChunk(x,y,z+1)
-                    if neighbor and not neighbor.dead then n5 = neighbor.data end
+                    if neighbor and not neighbor.dead then n5 = neighbor.data else assert(false) end
                     neighbor = self:getChunk(x,y,z-1)
-                    if neighbor and not neighbor.dead then n6 = neighbor.data end
+                    if neighbor and not neighbor.dead then n6 = neighbor.data else assert(false) end
 
                     thread:start(chunk.hash, chunk.data, chunk.size, common.Tiles.tiles, common.Tiles.tids, n1, n2, n3, n4, n5, n6)
                     threadchannels[chunk.hash] = chunk
+                    threadusage = threadusage + 1 -- use up thread
+                    table.remove(self.remeshQueue, 1)
                     break
                 end
             end
+        else
+            table.remove(self.remeshQueue, 1)
         end
     end
 
