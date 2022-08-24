@@ -1,13 +1,24 @@
 # Vöx
 
-A simple voxel engine created using [g3d](https://github.com/groverburger/g3d) for [LÖVE](https://love2d.org).
+A simple multiplayer sandbox voxel game/demo made with [LÖVE](https://love2d.org) using [g3d](https://github.com/groverburger/g3d) ❤️💚💙
 
-## Features
+This is a fork of [g3d_voxel](https://github.com/groverburger/g3d_voxel) that aims not to be particularly fast or minimal, but to be playable locally or remotely with other players.
 
-- Infinite terrain both horizontally and vertically
-- Multithreaded chunk loading
-- Fast and optimized
-- Simple, commented, and organized
-- Minimal dependencies
+The server and client operate using lua-enet, and there is (currently) no way play as singleplayer.
 
-![g3d_voxel3](https://user-images.githubusercontent.com/19754251/146161518-7e94510f-5683-4a3c-aaa2-c39d4d23f0bd.png)
+## How to run 
+
+Clone this repository onto your machine with: 
+
+`$ git clone https://github.com/DMClVG/voex.git voex`
+
+To start the server, run:
+
+`$ cd voex && love server [port]`
+
+And for the client, do:
+
+`$ cd voex && love client [address] [port] [username]`
+
+Enjoy
+![VÖX](/screenshots/01.png)
