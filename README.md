@@ -6,6 +6,9 @@ This is a fork of [g3d_voxel](https://github.com/groverburger/g3d_voxel) that ai
 
 The server and client operate using lua-enet, and there is (currently) no way play as singleplayer.
 
+## Issues
+If you face any problems, please open an issue. Thanks 
+
 ## How to run 
 
 Clone this repository onto your machine with: 
