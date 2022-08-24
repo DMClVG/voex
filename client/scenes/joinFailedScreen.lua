@@ -4,6 +4,7 @@ local g = love.graphics
 local msg
 function JoinFailedScreen:init(cause)
     msg = cause
+    net.onPeerDisconnect = function () end
 end
 
 function JoinFailedScreen:update(dt)
