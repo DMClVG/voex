@@ -7,14 +7,28 @@
         {
             "type": "lua-local",
             "request": "launch",
-            "name": "Debug LOVE",
+            "name": "Debug client",
             "program":
             {
                 "command": "love"
             },
             "args": 
             [
-                "${workspaceFolder}",
+                "${workspaceFolder}/client",
+                "vsc_debug"
+            ],
+        },
+        {
+            "type": "lua-local",
+            "request": "launch",
+            "name": "Debug server",
+            "program":
+            {
+                "command": "love"
+            },
+            "args": 
+            [
+                "${workspaceFolder}/server",
                 "vsc_debug"
             ],
         }

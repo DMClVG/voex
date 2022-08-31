@@ -2,7 +2,7 @@ require "love.math"
 require "love.data"
 ffi = require "ffi"
 
-local channel, blockdata, tiles, tids, n1, n2, n3, n4, n5, n6 = ...
+local channel, blockdata, size, tiles, tids, n1, n2, n3, n4, n5, n6 = ...
 local blockdatapointer = ffi.cast("uint8_t *", blockdata:getFFIPointer())
 local n1p = n1 and ffi.cast("uint8_t *", n1:getFFIPointer())
 local n2p = n2 and ffi.cast("uint8_t *", n2:getFFIPointer())
@@ -48,7 +48,6 @@ function getBlock(pointer, x,y,z)
 end
 
 facecount = 0
-size = 16
 for x=0, size-1 do
     for y=0, size-1 do
         for z=0, size-1 do
@@ -110,6 +109,7 @@ if count > 0 then
             for z=0, size-1 do
                 local id = getBlock(blockdatapointer, x,y,z)
                 if id ~= 0 then
+                    assert(tids[id], "Id "..id.. " does not exist")
                     local tile = tids[id]
                     local u1, v1 = (tile.tex % 8) / 8, math.floor(tile.tex / 8) / 8
                     if getBlock(blockdatapointer, x-1,y,z) == 0 then addFace(x,y,z,   0,1,2, u1,v1,c2) end
