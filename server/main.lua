@@ -2,7 +2,7 @@ if arg[#arg] == "vsc_debug" then require("lldebugger").start() end
 
 IS_SERVER = true
 
-common = require "common"
+common = require "../common"
 enet = require "enet"
 
 ServerWorld = require "serverworld"

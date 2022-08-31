@@ -10,7 +10,7 @@ g3d = require "lib/g3d"
 scene = require "lib/scene"
 enet = require "enet"
 
-common = require "common"
+common = require "../common"
 
 
 require "scenes.gameworld"
