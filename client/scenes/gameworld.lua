@@ -159,33 +159,37 @@ function GameWorld:onUpdated(dt)
     --[[NOTE: if this happens multiple times in a frame, weird things can happen? idk why 
         NOTE(DMClVG): This was because chunks inside this loop that couldn't find a thread (due to the fact that threadusage was only recalculated every frame, and not on every started thread),
         weren't reinserted after being removed from the queue and were effectively lost ]]
-    while threadusage < #threadpool and #self.remeshQueue > 0 do
+    local remeshesThisFrame = #self.remeshQueue
+    local remeshes = 0
+    while threadusage < #threadpool and #self.remeshQueue > 0 and remeshes < remeshesThisFrame do
         local chunk = self.remeshQueue[1]
+        remeshes = remeshes + 1
 
-        if chunk and not chunk.dead and self.chunks[chunk.hash] then
+        if chunk and not chunk.dead then
             for _, thread in ipairs(threadpool) do
                 if not thread:isRunning() then
+                    table.remove(self.remeshQueue, 1)
+                                        
                     -- send over the neighboring chunks to the thread
                     -- so that voxels on the edges can face themselves properly
                     local x, y, z = chunk.cx, chunk.cy, chunk.cz
                     local neighbor, n1, n2, n3, n4, n5, n6
                     neighbor = self:getChunk(x+1,y,z)
-                    if neighbor then n1 = neighbor.data else table.remove(self.remeshQueue, 1) break end
+                    if neighbor then n1 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
                     neighbor = self:getChunk(x-1,y,z)
-                    if neighbor then n2 = neighbor.data else table.remove(self.remeshQueue, 1) break end
+                    if neighbor then n2 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
                     neighbor = self:getChunk(x,y+1,z)
-                    if neighbor then n3 = neighbor.data else table.remove(self.remeshQueue, 1) break end
+                    if neighbor then n3 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
                     neighbor = self:getChunk(x,y-1,z)
-                    if neighbor then n4 = neighbor.data else table.remove(self.remeshQueue, 1) break end
+                    if neighbor then n4 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
                     neighbor = self:getChunk(x,y,z+1)
-                    if neighbor then n5 = neighbor.data else table.remove(self.remeshQueue, 1) break end
+                    if neighbor then n5 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
                     neighbor = self:getChunk(x,y,z-1)
-                    if neighbor then n6 = neighbor.data else table.remove(self.remeshQueue, 1) break end
+                    if neighbor then n6 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
 
                     thread:start(chunk.hash, chunk.data, chunk.size, common.Tiles.tiles, common.Tiles.tids, n1, n2, n3, n4, n5, n6)
                     threadchannels[chunk.hash] = chunk
                     threadusage = threadusage + 1 -- use up thread
-                    table.remove(self.remeshQueue, 1)
                     break
                 end
             end
