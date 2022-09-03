@@ -67,7 +67,7 @@ function onPeerReceive(peer, _, data)
     --         print(k, v:getSize())
     --     end
     -- end
-    print("Received ".. data.type)
+    -- print("Received ".. data.type)
 
     local handle = netHandler[data.type]
     if not handle then

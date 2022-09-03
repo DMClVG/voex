@@ -7,9 +7,10 @@ enet = require "enet"
 
 ServerWorld = require "serverworld"
 ServerPlayer = require "serverplayer"
+ServerChunk = require "serverchunk"
 packets = require "./packets"
 
-players = {}
+players = { peers = {} }
 
 banlist = { }
 takenUsernames = {}
@@ -34,16 +35,7 @@ function love.load(args)
     net.onPeerReceive = onPeerReceive
 
     world = ServerWorld(net)
-
-    for i = -6, 6 do
-        for j = -6, 6 do
-            for k = -3, 3 do
-                local chunk = common.Chunk(i, j, k)
-                chunk:generate()
-                world:addChunk(chunk)
-            end
-        end
-    end
+    loex.World.singleton = world
 end
 
 function onPeerConnect(peer, user)
@@ -56,13 +48,14 @@ function onPeerDisconnect(peer, user)
     else
         print(user.playerEntity.username.. " left the game :<")
         user.playerEntity.dead = true
-        lume.remove(players, peer)
+        lume.remove(players.peers, peer)
+        lume.remove(players, user.playerEntity)
         takenUsernames[user.playerEntity.username] = nil
     end
 end
 
 function onPeerReceive(peer, user, data)
-    print("Received "..data.type)
+    -- print("Received "..data.type)
 
     if user.playerEntity == nil then
         if data.type == "Join" then
@@ -80,21 +73,14 @@ function onPeerReceive(peer, user, data)
             takenUsernames[player.username] = true
             
             print(player.username.. " joined the game :>")
-            
+
             peer:send(packets.JoinSucceeded(player.id, player.x, player.y, player.z), CHANNEL_ONE)
             
             world:addEntity(player)
     
-            for _, chunk in pairs(world.chunks) do
-                peer:send(packets.Chunk(chunk.data, chunk.cx, chunk.cy, chunk.cz), CHANNEL_CHUNKS, "reliable")
-            end
-    
-            for _, entity in pairs(world.entities) do
-                peer:send(packets.EntityAdded(entity.id, entity.type, entity.x, entity.y, entity.z, entity:remoteExtras()), CHANNEL_EVENTS, "reliable")
-            end
-    
             user.playerEntity = player
-            table.insert(players, peer)
+            table.insert(players.peers, peer)
+            table.insert(players, player)
         end
     else
         user.playerEntity["P"..data.type](user.playerEntity, data)
@@ -104,31 +90,11 @@ end
 function love.update(dt)
     net:service()
     world:update(dt)
-    synchronizePositions()
 end
 
 function love.quit()
     if net then
         net:disconnect()
-    end
-end
-
-function synchronizePositions()
-    local entities = world.entities
-    for _, e in pairs(entities) do
-        if e.syncX == nil or e.x ~= e.syncX or e.y ~= e.syncY or e.z ~= e.syncZ then
-            e.syncX = e.x
-            e.syncY = e.y
-            e.syncZ = e.z
-
-            if e.master then
-                local dest = lume.clone(players)
-                lume.remove(dest, e.master)
-                net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ), CHANNEL_UPDATES, "unreliable", dest)
-            else
-                net:broadcast(packets.EntityMoved(e.id, e.syncX, e.syncY, e.syncZ), CHANNEL_UPDATES, "unreliable")
-            end
-        end
     end
 end
 

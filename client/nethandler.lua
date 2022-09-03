@@ -16,7 +16,7 @@ function netHandler.JoinFailed(data, net, world)
     scene(require("scenes/joinFailedScreen"), data.cause)
 end
 
-function netHandler.Chunk(data, net, world)
+function netHandler.ChunkAdded(data, net, world)
     world:addChunk(loex.Chunk.fromPacket(data))
 end
 
@@ -59,6 +59,13 @@ end
 function netHandler.EntityRemoved(data, net, world)
     local entity = world:getEntity(data.id)
     entity.dead = true
+end
+
+function netHandler.ChunkRemoved(data, net, world)
+    local cx, cy, cz = tonumber(data.cx), tonumber(data.cy), tonumber(data.cz)
+    local chunk = world:getChunk(cx, cy, cz)
+    assert(chunk)
+    chunk:destroy()
 end
 
 return netHandler

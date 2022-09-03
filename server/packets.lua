@@ -8,8 +8,12 @@ function packets.JoinFailed(cause)
     return ("[type=JoinFailed;cause=%s;]"):format(cause)
 end
 
-function packets.Chunk(tiles, cx, cy, cz)
-    return table.concat({ ("[type=Chunk;cx=%d;cy=%d;cz=%d;]"):format(cx, cy, cz), tiles:getString() })
+function packets.ChunkAdded(tiles, cx, cy, cz)
+    return table.concat({ ("[type=ChunkAdded;cx=%d;cy=%d;cz=%d;]"):format(cx, cy, cz), tiles:getString() })
+end
+
+function packets.ChunkRemoved(cx, cy, cz)
+    return ("[type=ChunkRemoved;cx=%d;cy=%d;cz=%d;]"):format(cx, cy, cz)
 end
 
 function packets.Placed(x, y, z, t)

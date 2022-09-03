@@ -16,7 +16,6 @@ end
 function ServerPlayer:PBreak(data)
     local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
     self.world:setBlockFromWorld(x, y, z, loex.Tiles.air.id)
-    net:broadcast(packets.Broken(x, y, z), CHANNEL_EVENTS, "reliable")
 end
 
 function ServerPlayer:PPlace(data)
@@ -32,10 +31,23 @@ function ServerPlayer:PPlace(data)
     end
     if not collided then
         self.world:setBlockFromWorld(x, y, z, t)
-        net:broadcast(packets.Placed(x, y, z, t), CHANNEL_EVENTS, "reliable")
     else
         -- invalid placement
     end
+end
+
+function ServerPlayer:subscribeToChunk(chunk)
+    self.master:send(packets.ChunkAdded(chunk.data, chunk.cx, chunk.cy, chunk.cz), CHANNEL_EVENTS)
+    for id, _ in pairs(chunk.entities) do
+        local entity = self.world:getEntity(id)
+        self.master:send(packets.EntityAdded(id, entity.type, entity.x, entity.y, entity.z, entity:remoteExtras()), CHANNEL_EVENTS)
+    end
+    chunk.subscribers[self.id] = true
+end
+
+function ServerPlayer:unsubscribeFromChunk(chunk)
+    self.master:send(packets.ChunkRemoved(chunk.cx, chunk.cy, chunk.cz), CHANNEL_EVENTS, "reliable")
+    chunk.subscribers[self.id] = nil
 end
 
 return ServerPlayer

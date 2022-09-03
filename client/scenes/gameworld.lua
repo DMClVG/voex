@@ -170,17 +170,17 @@ function GameWorld:onUpdated(dt)
                     local x, y, z = chunk.cx, chunk.cy, chunk.cz
                     local neighbor, n1, n2, n3, n4, n5, n6
                     neighbor = self:getChunk(x+1,y,z)
-                    if neighbor and not neighbor.dead then n1 = neighbor.data else assert(false) end
+                    if neighbor then n1 = neighbor.data else table.remove(self.remeshQueue, 1) break end
                     neighbor = self:getChunk(x-1,y,z)
-                    if neighbor and not neighbor.dead then n2 = neighbor.data else assert(false) end
+                    if neighbor then n2 = neighbor.data else table.remove(self.remeshQueue, 1) break end
                     neighbor = self:getChunk(x,y+1,z)
-                    if neighbor and not neighbor.dead then n3 = neighbor.data else assert(false) end
+                    if neighbor then n3 = neighbor.data else table.remove(self.remeshQueue, 1) break end
                     neighbor = self:getChunk(x,y-1,z)
-                    if neighbor and not neighbor.dead then n4 = neighbor.data else assert(false) end
+                    if neighbor then n4 = neighbor.data else table.remove(self.remeshQueue, 1) break end
                     neighbor = self:getChunk(x,y,z+1)
-                    if neighbor and not neighbor.dead then n5 = neighbor.data else assert(false) end
+                    if neighbor then n5 = neighbor.data else table.remove(self.remeshQueue, 1) break end
                     neighbor = self:getChunk(x,y,z-1)
-                    if neighbor and not neighbor.dead then n6 = neighbor.data else assert(false) end
+                    if neighbor then n6 = neighbor.data else table.remove(self.remeshQueue, 1) break end
 
                     thread:start(chunk.hash, chunk.data, chunk.size, common.Tiles.tiles, common.Tiles.tids, n1, n2, n3, n4, n5, n6)
                     threadchannels[chunk.hash] = chunk
@@ -231,7 +231,7 @@ function GameWorld:onUpdated(dt)
 
     local p = self.player
     local pbox = p:getBox()
-    local placedBlock = 1
+    local placedBlock = common.Tiles.stone.id
 
     -- right click to place blocks
     if rightClick and buildx then

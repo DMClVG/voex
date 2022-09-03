@@ -1,6 +1,7 @@
 local World = Object:extend()
 local Chunk = loex.Chunk
 local size = Chunk.size
+local floor = math.floor
 
 World.singleton = nil
 
@@ -10,13 +11,18 @@ function World:new()
 end
 
 function World:update(dt)
+
     local entities = self.entities
+
     for id, entity in pairs(entities) do
         if not entity.dead then
             entity:update(dt)
+            -- update entity owner (the chunk that owns a entity given its position)
+            entity:updateOwner()
         else
             entities[id] = nil
             self:onEntityRemoved(entity)
+            entity:destroy()
         end
     end
     self:onUpdated(dt)
@@ -24,6 +30,7 @@ end
 
 function World:onUpdated(dt) --[[overload]] end
 function World:onChunkAdded(chunk) --[[overload]] end
+function World:onChunkRemoved(chunk) --[[overload]] end
 function World:onEntityAdded(entity) --[[overload]] end
 function World:onEntityRemoved(entity) --[[overload]] end
 function World:onTileChanged(x, y, z, value) --[[overload]] end
@@ -32,11 +39,12 @@ function World:addEntity(entity)
     assert(self.entities.world == nil)
     self.entities[entity.id] = entity
     entity.world = self
+    entity:updateOwner()
     self:onEntityAdded(entity)
 end
 
 function World:addChunk(chunk)
-    assert(self.chunks[chunk.hash] == nil)
+    assert(not self.chunks[chunk.hash])
     self.chunks[chunk.hash] = chunk
     self:onChunkAdded(chunk)
 end
@@ -70,7 +78,6 @@ function World:query(class)
 end
 
 local cube = { w=0.5, h=0.5, d=0.5 }
-local floor = math.floor
 local intersect = loex.Utils.intersectBoxAndBox
 function World:intersectWithWorld(box) 
     for i = floor(box.x-box.w),floor(box.x+box.w) do

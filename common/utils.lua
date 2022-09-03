@@ -40,4 +40,8 @@ function Utils.expand(box, ex, ey, ez)
     return box
 end
 
+function Utils.dist3d(ax, ay, az, bx, by, bz)
+    return math.sqrt((ax-bx)*(ax-bx)+(ay-by)*(ay-by)+(az-bz)*(az-bz))
+end
+
 return Utils

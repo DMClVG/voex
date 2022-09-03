@@ -15,6 +15,8 @@ function Chunk:new(x,y,z,data)
     self.frames = 0
     self.inRemeshQueue = false
     self.world = loex.World.singleton
+    self.dead = false
+    self.entities = {}
 
     if data then
         self.data = data
@@ -99,7 +101,14 @@ function Chunk:destroy()
     self.dead = true
     self.data:release()
     self.world.chunks[self.hash] = nil
+
+    for id, _ in pairs(self.entities) do
+        self.world.entities[id].dead = true -- kill all child entities
+    end
 end
+
+function Chunk:onEntityEnter(e, prev) --[[overload]] end
+function Chunk:onEntityLeave(e, next) --[[overload]] end
 
 function Chunk.hashFrom(x, y, z)
     return ("%d/%d/%d"):format(x, y, z)

@@ -17,7 +17,6 @@ function Player:remoteExtras()
 end
 
 function Player:update()
-    
 end
 
 function Player:getBox()

@@ -35,9 +35,9 @@ lume = require(loex.lpath .. "lib.lume")
 
 loex.Utils = require(loex.lpath .. "utils")
 loex.Tiles = require(loex.lpath .. "tiles"):init()
+loex.Chunk = require(loex.lpath .. "chunk")
 loex.Entity = require(loex.lpath .. "entity")
 loex.entities = require(loex.lpath .. "entities")
-loex.Chunk = require(loex.lpath .. "chunk")
 loex.World = require(loex.lpath .. "world")
 loex.Network = require(loex.lpath .. "network")
 
