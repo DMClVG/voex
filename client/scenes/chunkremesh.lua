@@ -91,8 +91,8 @@ if count > 0 then
             datapointer[dataindex].x  = x + (mx == 1 and primary and 1 or 0) + (mx == 2 and secondary and 1 or 0)
             datapointer[dataindex].y  = y + (my == 1 and primary and 1 or 0) + (my == 2 and secondary and 1 or 0)
             datapointer[dataindex].z  = z + (mz == 1 and primary and 1 or 0) + (mz == 2 and secondary and 1 or 0)
-            datapointer[dataindex].u  = u + (primary   and 1/8 or 0)
-            datapointer[dataindex].v  = v + (secondary and 1/8 or 0)
+            datapointer[dataindex].u  = u + (primary   and 1/16 or 0)
+            datapointer[dataindex].v  = (v+1/16) - (secondary and 1/16 or 0)
             datapointer[dataindex].nx = 0
             datapointer[dataindex].ny = 1
             datapointer[dataindex].nz = 0
@@ -111,13 +111,23 @@ if count > 0 then
                 if id ~= 0 then
                     assert(tids[id], "Id "..id.. " does not exist")
                     local tile = tids[id]
-                    local u1, v1 = (tile.tex % 8) / 8, math.floor(tile.tex / 8) / 8
-                    if getBlock(blockdatapointer, x-1,y,z) == 0 then addFace(x,y,z,   0,1,2, u1,v1,c2) end
-                    if getBlock(blockdatapointer, x+1,y,z) == 0 then addFace(x+1,y,z, 0,1,2, u1,v1,c2, true) end
-                    if getBlock(blockdatapointer, x,y-1,z) == 0 then addFace(x,y,z,   1,0,2, u1,v1,c1, true) end
-                    if getBlock(blockdatapointer, x,y+1,z) == 0 then addFace(x,y+1,z, 1,0,2, u1,v1,c1) end
-                    if getBlock(blockdatapointer, x,y,z-1) == 0 then addFace(x,y,z,   1,2,0, u1,v1,c3) end
-                    if getBlock(blockdatapointer, x,y,z+1) == 0 then addFace(x,y,z+1, 1,2,0, u1,v1,c1, true) end
+                    if type(tile.tex) == "table" then
+                        local top, bottom, right, left, front, back = unpack(tile.tex)
+                        if getBlock(blockdatapointer, x-1,y,z) == 0 then addFace(x,y,z,   0,1,2, (left % 16) / 16, math.floor(left / 16) / 16,c2) end
+                        if getBlock(blockdatapointer, x+1,y,z) == 0 then addFace(x+1,y,z, 0,1,2, (right % 16) / 16, math.floor(right / 16) / 16,c2, true) end
+                        if getBlock(blockdatapointer, x,y-1,z) == 0 then addFace(x,y,z,   1,0,2, (front % 16) / 16, math.floor(front / 16) / 16,c1, true) end
+                        if getBlock(blockdatapointer, x,y+1,z) == 0 then addFace(x,y+1,z, 1,0,2, (back % 16) / 16, math.floor(back / 16) / 16,c1) end
+                        if getBlock(blockdatapointer, x,y,z-1) == 0 then addFace(x,y,z,   1,2,0, (bottom % 16) / 16, math.floor(bottom / 16) / 16,c3) end
+                        if getBlock(blockdatapointer, x,y,z+1) == 0 then addFace(x,y,z+1, 1,2,0, (top % 16) / 16, math.floor(top / 16) / 16,c1, true) end
+                    else
+                        local u1, v1 = (tile.tex % 16) / 16, math.floor(tile.tex / 16) / 16
+                        if getBlock(blockdatapointer, x-1,y,z) == 0 then addFace(x,y,z,   0,1,2, u1,v1,c2) end
+                        if getBlock(blockdatapointer, x+1,y,z) == 0 then addFace(x+1,y,z, 0,1,2, u1,v1,c2, true) end
+                        if getBlock(blockdatapointer, x,y-1,z) == 0 then addFace(x,y,z,   1,0,2, u1,v1,c1, true) end
+                        if getBlock(blockdatapointer, x,y+1,z) == 0 then addFace(x,y+1,z, 1,0,2, u1,v1,c1) end
+                        if getBlock(blockdatapointer, x,y,z-1) == 0 then addFace(x,y,z,   1,2,0, u1,v1,c3) end
+                        if getBlock(blockdatapointer, x,y,z+1) == 0 then addFace(x,y,z+1, 1,2,0, u1,v1,c1, true) end
+                    end
                 end
             end
         end

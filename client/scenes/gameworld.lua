@@ -235,7 +235,7 @@ function GameWorld:onUpdated(dt)
 
     local p = self.player
     local pbox = p:getBox()
-    local placedBlock = common.Tiles.stone.id
+    local placedBlock = common.Tiles.bricks.id
 
     -- right click to place blocks
     if rightClick and buildx then

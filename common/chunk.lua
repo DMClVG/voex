@@ -1,8 +1,10 @@
-local size = 16
+local size = 8
 local ffi = require "ffi"
 
 local Chunk = Object:extend()
 Chunk.size = size
+
+local floor = math.floor
 
 function Chunk:new(x,y,z,data)
     self.cx = x
@@ -35,32 +37,27 @@ function Chunk.fromPacket(packet)
 end
 
 function Chunk:generate()
-    local planks = loex.Tiles.planks.id
+    local grass = loex.Tiles.grass.id
+    local dirt = loex.Tiles.dirt.id
+    local stone = loex.Tiles.stone.id
     local datapointer = self.datapointer
-    if false then
-        local f = 0.125
-        for i=0, size*size*size - 1 do
-            local x, y, z = i%size + self.x, math.floor(i/size)%size + self.y, math.floor(i/(size*size)) + self.z
-            datapointer[i] = love.math.noise(x*f,y*f,z*f) > (z+32)/64 and planks or 0
-        end
-    else
-        if self.cz <= 0 then
-            for k = 0, size-1 do
-                for i=0, size-1 do
-                    for j=0, size-1 do
-                        datapointer[i+j*size+k*size*size] = planks
+    local x, y, z = self.x, self.y, self.z
+    -- if false then
+        local f = 0.125/10
+        for i=0,size-1 do
+            for j=0,size-1 do
+                local h = floor(love.math.noise((x+i)*f, (y+j)*f)*17)
+                for k=0, math.min(h-z,size-1) do
+                    if z+k==h then
+                        datapointer[i+j*size+k*size*size] = grass
+                    elseif z+k>h-5 then
+                        datapointer[i+j*size+k*size*size] = dirt
+                    else
+                        datapointer[i+j*size+k*size*size] = stone
                     end
                 end
             end
         end
-        if self.cz == 1 then
-            for i=0, size-1 do
-                for j=0, size-1 do
-                    datapointer[i+j*size] = planks
-                end
-            end
-        end
-    end
 end
 
 function Chunk:getBlock(x,y,z)
