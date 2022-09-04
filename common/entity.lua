@@ -42,6 +42,7 @@ end
 function Entity:destroy()
     if self.owner then
         self.owner.entities[self.id] = nil
+        self.owner:onEntityLeave(self, nil)
     end
 end
 
