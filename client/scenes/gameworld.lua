@@ -375,7 +375,7 @@ end
 
 function GameWorld:requestRemesh(chunk, first)
     -- don't add a nil chunk or a chunk that's already in the queue
-    if not chunk or chunk.inRemeshQueue then return end
+    if not chunk or chunk.inRemeshQueue or not chunk.data then return end
     local x, y, z = chunk.cx, chunk.cy, chunk.cz
 
     -- check if has neighboring chunks

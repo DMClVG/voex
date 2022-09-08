@@ -9,7 +9,11 @@ function packets.JoinFailed(cause)
 end
 
 function packets.ChunkAdded(tiles, cx, cy, cz)
-    return table.concat({ ("[type=ChunkAdded;cx=%d;cy=%d;cz=%d;]"):format(cx, cy, cz), tiles:getString() })
+    local packet = ("[type=ChunkAdded;cx=%d;cy=%d;cz=%d;]"):format(cx, cy, cz)
+    if tiles then
+        packet = table.concat({ packet, tiles:getString() })
+    end
+    return packet
 end
 
 function packets.ChunkRemoved(cx, cy, cz)

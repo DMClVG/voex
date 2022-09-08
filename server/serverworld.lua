@@ -55,10 +55,6 @@ function ServerWorld:onUpdated(dt)
     synchronizePositions()
 end
 
-function ServerWorld:getOrAddGenColumn(cx, cy) 
-
-end
-
 local log = loex.Tiles.log.id
 local leaves = loex.Tiles.leaves.id
 
@@ -121,6 +117,9 @@ local genStages = {
                 table.insert(hm, h)
                 for _, chunk in ipairs(column) do
                     for k=0, math.min(h-chunk.z,size-1) do
+                        if chunk.data == nil then
+                            chunk:initData()
+                        end
                         if chunk.z+k==h then
                             chunk.datapointer[i+j*size+k*size*size] = grass
                         elseif chunk.z+k>h-5 then

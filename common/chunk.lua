@@ -19,17 +19,16 @@ function Chunk:new(x,y,z,data)
     self.world = loex.World.singleton
     self.dead = false
     self.entities = {}
-
-    if data then
-        self.data = data
-    else
-        self.data = love.data.newByteData(size*size*size*ffi.sizeof("uint8_t"))
+    self.data = data
+    if self.data then
+        self.datapointer = ffi.cast("uint8_t *", self.data:getFFIPointer())
     end
-    self.datapointer = ffi.cast("uint8_t *", self.data:getFFIPointer())
 end
 
 function Chunk.fromPacket(packet)
-    assert(packet.bin:getSize() == Chunk.size^3, "Chunk data of wrong size!")
+    if packet.bin then
+        assert(packet.bin:getSize() == Chunk.size^3, "Chunk data of wrong size!")
+    end
     local cx = tonumber(packet.cx)
     local cy = tonumber(packet.cy)
     local cz = tonumber(packet.cz)
@@ -60,12 +59,21 @@ end
 --     end
 -- end
 
+function Chunk:initData()
+    self.data = love.data.newByteData(size*size*size*ffi.sizeof("uint8_t"))
+    self.datapointer = ffi.cast("uint8_t *", self.data:getFFIPointer())
+end
+
 function Chunk:getBlock(x,y,z)
     if self.dead then return -1 end
 
     if x >= 0 and y >= 0 and z >= 0 and x < size and y < size and z < size then
-        local i = x + size*y + size*size*z
-        return self.datapointer[i]
+        if self.data then
+            local i = x + size*y + size*size*z
+            return self.datapointer[i]
+        else
+            return 0
+        end
     end
 
     local chunk = self.world:getChunkFromWorld(self.x+x,self.y+y,self.z+z)
@@ -75,8 +83,12 @@ end
 
 function Chunk:setBlock(x,y,z, value)
     if self.dead then return -1 end
-
+    
     if x >= 0 and y >= 0 and z >= 0 and x < size and y < size and z < size then
+        if not self.data then
+            self:initData()
+        end
+
         local i = x + size*y + size*size*z
         local oldvalue = self.datapointer[i]
         self.datapointer[i] = value
@@ -85,8 +97,8 @@ function Chunk:setBlock(x,y,z, value)
         assert(false)
     end
 
-    local chunk = self.world:getChunkFromWorld(self.x+x,self.y+y,self.z+z)
-    if chunk then return chunk:setBlock(x%size,y%size,z%size, value) end
+    -- local chunk = self.world:getChunkFromWorld(self.x+x,self.y+y,self.z+z)
+    -- if chunk then return chunk:setBlock(x%size,y%size,z%size, value) end
 end
 
 function Chunk:draw()
@@ -98,7 +110,10 @@ end
 function Chunk:destroy()
     if self.model then self.model.mesh:release() end
     self.dead = true
-    self.data:release()
+    if self.data then
+        self.data:release()
+        self.datapointer = nil
+    end
     self.world.chunks[self.hash] = nil
 
     for id, _ in pairs(self.entities) do

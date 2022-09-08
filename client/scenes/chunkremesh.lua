@@ -37,12 +37,12 @@ function getBlock(pointer, x,y,z)
     local i = x + size*y + size*size*z
 
     -- if this block is outside of the chunk, check the neighboring chunks if they exist
-    if x >= size then return n1p and getBlock(n1p, x%size,y%size,z%size) or -1 end
-    if x <  0    then return n2p and getBlock(n2p, x%size,y%size,z%size) or -1 end
-    if y >= size then return n3p and getBlock(n3p, x%size,y%size,z%size) or -1 end
-    if y <  0    then return n4p and getBlock(n4p, x%size,y%size,z%size) or -1 end
-    if z >= size then return n5p and getBlock(n5p, x%size,y%size,z%size) or -1 end
-    if z <  0    then return n6p and getBlock(n6p, x%size,y%size,z%size) or -1 end
+    if x >= size then return n1p and getBlock(n1p, x%size,y%size,z%size) or 0 end
+    if x <  0    then return n2p and getBlock(n2p, x%size,y%size,z%size) or 0 end
+    if y >= size then return n3p and getBlock(n3p, x%size,y%size,z%size) or 0 end
+    if y <  0    then return n4p and getBlock(n4p, x%size,y%size,z%size) or 0 end
+    if z >= size then return n5p and getBlock(n5p, x%size,y%size,z%size) or 0 end
+    if z <  0    then return n6p and getBlock(n6p, x%size,y%size,z%size) or 0 end
 
     return pointer[i]
 end
