@@ -1,3 +1,5 @@
 function love.conf(t)
-    t.window = false
+    t.window.title = "Vöx Server"
+    t.window.resizable = true
+    -- t.window = false
 end

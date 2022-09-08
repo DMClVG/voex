@@ -81,6 +81,8 @@ function Chunk:setBlock(x,y,z, value)
         local oldvalue = self.datapointer[i]
         self.datapointer[i] = value
         return oldvalue
+    else
+        assert(false)
     end
 
     local chunk = self.world:getChunkFromWorld(self.x+x,self.y+y,self.z+z)

@@ -92,6 +92,10 @@ function love.update(dt)
     world:update(dt)
 end
 
+function love.draw()
+    world:draw()
+end
+
 function love.quit()
     if net then
         net:disconnect()

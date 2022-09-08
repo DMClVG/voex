@@ -6,7 +6,9 @@ Tiles.tiles = {
     planks = { id=2, tex=5 },
     grass = { id=3, tex={17,1,0,0,0,0}},
     dirt = { id=4, tex=1 },
-    bricks = { id=5, tex=3 }
+    bricks = { id=5, tex=3 },
+    log = { id=6, tex = {22, 22, 21, 21, 21, 21}},
+    leaves = {id=7, tex=16}
 }
 
 setmetatable(Tiles, { __index=function (_, k)
