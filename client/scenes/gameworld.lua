@@ -38,6 +38,8 @@ do
     }
 end
 
+local mousedx, mousedy = 0, 0
+
 
 function GameWorld:new(playerEntity)
     GameWorld.super.new(self)
@@ -258,6 +260,10 @@ function GameWorld:onUpdated(dt)
         end
     end
 
+    g3d.camera.firstPersonLook(mousedx, mousedy)
+    mousedx = mousedx * 0.6
+    mousedy = mousedy * 0.6
+
 
     local speed, jumpForce = 5, 12
     local dirx, diry, dirz = g3d.camera.getLookVector()
@@ -281,8 +287,12 @@ function GameWorld:onUpdated(dt)
     
 
     local mvx, mvy, _ = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(move.x, move.y, move.z))
-    p.vx = mvx
-    p.vy = mvy
+    if mvx ~= 0 then
+        p.vx = mvx
+    end
+    if mvy ~= 0 then
+        p.vy = mvy
+    end
     p.vz = p.vz - Physics.WORLD_G * dt
 
     local nv, touchedGround = advanceBoxInWorld(self, pbox, {x=p.vx,y=p.vy,z=p.vz}, dt)
@@ -297,6 +307,9 @@ function GameWorld:onUpdated(dt)
     g3d.camera.position[2] = p.y
     g3d.camera.position[3] = p.z + 0.7
     g3d.camera.lookInDirection()
+
+    p.vx = p.vx * 0.75
+    p.vy = p.vy * 0.75
 
     if touchedGround and love.keyboard.isDown("space") then
         p.vz = p.vz + jumpForce
@@ -316,7 +329,8 @@ function GameWorld:onUpdated(dt)
 end
 
 function GameWorld:mousemoved(x, y, dx, dy)
-    g3d.camera.firstPersonLook(dx, dy)
+    mousedx = dx
+    mousedy = dy
 end
 
 function GameWorld:draw()
