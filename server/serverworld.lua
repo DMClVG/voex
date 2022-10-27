@@ -57,12 +57,11 @@ end
 
 local log = loex.Tiles.log.id
 local leaves = loex.Tiles.leaves.id
+local stone = loex.Tiles.stone.id
 
 local genStages = {
     [0]=nil, -- done
-    [1]=function (column, setBlock, _)
-        -- generate trees
-
+    [1]=function (column, setBlock, _, getTerrainHeight)
         function genTree(x, y, z)
             for i=-2,2 do
                 for j=-2,2 do
@@ -93,6 +92,42 @@ local genStages = {
             end
         end
 
+        function genTower(x, y, z, h, w, l)
+            for i=-w,w do
+                for k=getTerrainHeight(x+i, y-l)+1-z,h-1 do
+                    if i ~= 0 or k < 0 or k > 2 then
+                        setBlock(x+i,y-l,z+k, stone)
+                    end
+                end
+                for k=getTerrainHeight(x+i, y+l)+1-z,h-1 do
+                    setBlock(x+i,y+l,z+k, stone)
+                end
+            end
+            for j=-l,l do
+                for k=getTerrainHeight(x-w, y+j)+1-z,h-1 do
+                    if k % 5 ~= 3 and k % 5 ~= 4 or j ~= 0 or k < 0 then
+                        setBlock(x-w,y+j,z+k, stone)
+                    end
+                end
+                for k=getTerrainHeight(x+w, y+j)+1-z,h-1 do
+                    setBlock(x+w,y+j,z+k, stone)
+                end
+            end
+
+            for i=-w-1,w+1 do
+                if i % 3 ~= 0 then
+                    setBlock(x+i,y-l-1,z+h, stone)
+                    setBlock(x+i,y+l+1,z+h, stone)
+                end
+            end
+            for j=-l-1,l+1 do
+                if j % 3 ~= 0 then
+                    setBlock(x-w-1,y+j,z+h, stone)
+                    setBlock(x+w+1,y+j,z+h, stone)
+                end
+            end
+        end
+
         local hm = column.heightmap
         math.randomseed(column.cx + column.cy)
         local treeCount = math.random(0, 4)
@@ -100,6 +135,12 @@ local genStages = {
             local i, j = floor(math.random()*size), floor(math.random()*size)
             local z = hm[1 + i + j * size] + 1
             genTree(column.x+i, column.y+j, z)
+        end
+
+        if math.random() > 0.95 then
+            local i, j = floor(math.random()*size), floor(math.random()*size)
+            local z = hm[1 + i + j * size] + 1
+            genTower(column.x+i, column.y+j, z, 11, 2, 2)
         end
     end,
     [2]=function(column, _, _)
@@ -197,9 +238,19 @@ function ServerWorld:generateChunkColumn(cx, cy)
 
     function setBlock(x, y, z, t)
         local cx, cy, cz = floor(x/size), floor(y/size), floor(z/size)
-        local column = getOrAddColumn(cx, cy)
+        -- local column = getOrAddColumn(cx, cy)
+        local column = self.genChunks[Chunk.hashFrom(cx, cy, 0)]
+        assert(column)
         local chunk = column[1+cz]
         chunk:setBlock(x-chunk.x, y-chunk.y, z-chunk.z, t)
+    end
+
+    function getTerrainHeight(x, y)
+        local cx, cy = floor(x/size), floor(y/size)
+        local column = getOrAddColumn(cx, cy)
+        local hm = column.heightmap
+        assert(hm)
+        return hm[1+(x-column.x)+(y-column.y)*size]
     end
 
     function getBlock(x, y, z)
@@ -214,7 +265,7 @@ function ServerWorld:generateChunkColumn(cx, cy)
             end
             column.stage = i
             if i ~= genStages.done then
-                local k, v = genStages[i](column, setBlock, getBlock)
+                local k, v = genStages[i](column, setBlock, getBlock, getTerrainHeight)
                 if k then
                     column[k] = v
                 end
@@ -228,15 +279,17 @@ function ServerWorld:generateChunkColumn(cx, cy)
     local column = getOrAddColumn(cx, cy)
 
     -- generate region around chunk
-    for i=-genStages.begin+1,genStages.begin-1 do
-        for j=-genStages.begin+1,genStages.begin-1 do
-            local column = getOrAddColumn(cx+i, cy+j)
-            if column ~= true then
-                genColumn(column, math.min(math.max(math.abs(i),math.abs(j))))
+    for stage=genStages.begin, genStages.done+1, -1 do
+        for i=-stage+1,stage-1 do
+            for j=-stage+1,stage-1 do
+                local column = getOrAddColumn(cx+i, cy+j)
+                if column ~= true then
+                    genColumn(column, stage-1)
+                end
             end
         end
     end
-
+    assert(column.stage == 0)
     for _, chunk in ipairs(column) do
         self:addChunk(chunk)
     end
