@@ -1,8 +1,9 @@
 if arg[#arg] == "vsc_debug" then require("lldebugger").start() end
+package.path = package.path .. ";?/init.lua"
 
 IS_SERVER = true
 
-common = require "../common"
+common = require "common"
 enet = require "enet"
 
 ServerWorld = require "serverworld"

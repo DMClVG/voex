@@ -1,4 +1,5 @@
 if arg[#arg] == "vsc_debug" then require("lldebugger").start() end
+package.path = package.path .. ";?/init.lua"
 
 lg = love.graphics
 ---@diagnostic disable-next-line: missing-parameter
@@ -10,7 +11,7 @@ g3d = require "lib/g3d"
 scene = require "lib/scene"
 enet = require "enet"
 
-common = require "../common"
+common = require "common"
 
 
 require "scenes.gameworld"
