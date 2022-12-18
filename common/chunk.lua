@@ -36,29 +36,29 @@ function Chunk.fromPacket(packet)
     return Chunk(cx, cy, cz, packet.bin)
 end
 
--- function Chunk:generate()
---     local grass = loex.Tiles.grass.id
---     local dirt = loex.Tiles.dirt.id
---     local stone = loex.Tiles.stone.id
---     local datapointer = self.datapointer
---     local x, y, z = self.x, self.y, self.z
---     -- if false then
---     local f = 0.125/10
---     for i=0,size-1 do
---         for j=0,size-1 do
---             local h = floor(love.math.noise((x+i)*f, (y+j)*f)*17)
---             for k=0, math.min(h-z,size-1) do
---                 if z+k==h then
---                     datapointer[i+j*size+k*size*size] = grass
---                 elseif z+k>h-5 then
---                     datapointer[i+j*size+k*size*size] = dirt
---                 else
---                     datapointer[i+j*size+k*size*size] = stone
---                 end
---             end
---         end
---     end
--- end
+function Chunk:generate()
+    local grass = loex.Tiles.grass.id
+    local dirt = loex.Tiles.dirt.id
+    local stone = loex.Tiles.stone.id
+    local datapointer = self.datapointer
+    local x, y, z = self.x, self.y, self.z
+    -- if false then
+    local f = 0.125/10
+    for i=0,size-1 do
+        for j=0,size-1 do
+            local h = floor(love.math.noise((x+i)*f, (y+j)*f)*17)
+            for k=0, math.min(h-z,size-1) do
+                if z+k==h then
+                    datapointer[i+j*size+k*size*size] = grass
+                elseif z+k>h-5 then
+                    datapointer[i+j*size+k*size*size] = dirt
+                else
+                    datapointer[i+j*size+k*size*size] = stone
+                end
+            end
+        end
+    end
+end
 
 function Chunk:getBlock(x,y,z)
     if self.dead then return -1 end
