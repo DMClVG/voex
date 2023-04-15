@@ -5,17 +5,17 @@ loex = {
         MIT License
 
         Copyright (c) 2022 DMClVG
-        
+
         Permission is hereby granted, free of charge, to any person obtaining a copy
         of this software and associated documentation files (the "Software"), to deal
         in the Software without restriction, including without limitation the rights
         to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
         copies of the Software, and to permit persons to whom the Software is
         furnished to do so, subject to the following conditions:
-        
+
         The above copyright notice and this permission notice shall be included in all
         copies or substantial portions of the Software.
-        
+
         THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
         IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
         FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -30,15 +30,14 @@ loex = {
 
 assert(love, "this package needs löve!")
 
-Object = require(loex.lpath .. "lib.classic")
 lume = require(loex.lpath .. "lib.lume")
 
-loex.Utils = require(loex.lpath .. "utils")
-loex.Tiles = require(loex.lpath .. "tiles"):init()
-loex.Chunk = require(loex.lpath .. "chunk")
-loex.Entity = require(loex.lpath .. "entity")
-loex.entities = require(loex.lpath .. "entities")
-loex.World = require(loex.lpath .. "world")
-loex.Network = require(loex.lpath .. "network")
+loex.signal = require(loex.lpath .. "signal")
+loex.utils = require(loex.lpath .. "utils")
+loex.tiles = require(loex.lpath .. "tiles")
+loex.chunk = require(loex.lpath .. "chunk")
+loex.entity = require(loex.lpath .. "entity")
+loex.world = require(loex.lpath .. "world")
+loex.socket = require(loex.lpath .. "socket")
 
 return loex

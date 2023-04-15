@@ -1,131 +1,93 @@
-local size = 16
 local ffi = require "ffi"
 
-local Chunk = Object:extend()
-Chunk.size = size
+local size = 32
+local chunk = {}
+chunk.size = size
 
-local floor = math.floor
+local empty_chunk = {}
 
-function Chunk:new(x,y,z,data)
-    self.cx = x
-    self.cy = y
-    self.cz = z
-    self.x = x*size
-    self.y = y*size
-    self.z = z*size
-    self.hash = self.hashFrom(x,y,z)
-    self.frames = 0
-    self.inRemeshQueue = false
-    self.world = loex.World.singleton
-    self.dead = false
-    self.entities = {}
-
-    if data then
-        self.data = data
+function empty_chunk:get(x, y, z)
+    if x >= 0 and x < size and y >= 0 and y < size and z >= 0 and z < size then
+        return 0
     else
-        self.data = love.data.newByteData(size*size*size*ffi.sizeof("uint8_t"))
-    end
-    self.datapointer = ffi.cast("uint8_t *", self.data:getFFIPointer())
-end
-
-function Chunk.fromPacket(packet)
-    assert(packet.bin:getSize() == Chunk.size^3, "Chunk data of wrong size!")
-    local cx = tonumber(packet.cx)
-    local cy = tonumber(packet.cy)
-    local cz = tonumber(packet.cz)
-    return Chunk(cx, cy, cz, packet.bin)
-end
-
-function Chunk:generate()
-    local grass = loex.Tiles.grass.id
-    local dirt = loex.Tiles.dirt.id
-    local stone = loex.Tiles.stone.id
-    local datapointer = self.datapointer
-    local x, y, z = self.x, self.y, self.z
-    -- if false then
-    local f = 0.125/10
-    for i=0,size-1 do
-        for j=0,size-1 do
-            local h = floor(love.math.noise((x+i)*f, (y+j)*f)*17)
-            for k=0, math.min(h-z,size-1) do
-                if z+k==h then
-                    datapointer[i+j*size+k*size*size] = grass
-                elseif z+k>h-5 then
-                    datapointer[i+j*size+k*size*size] = dirt
-                else
-                    datapointer[i+j*size+k*size*size] = stone
-                end
-            end
-        end
+        return -1
     end
 end
 
-function Chunk:getBlock(x,y,z)
-    if self.dead then return -1 end
-
-    if x >= 0 and y >= 0 and z >= 0 and x < size and y < size and z < size then
-        local i = x + size*y + size*size*z
-        return self.datapointer[i]
-    end
-
-    local chunk = self.world:getChunkFromWorld(self.x+x,self.y+y,self.z+z)
-    if chunk then return chunk:getBlock(x%size,y%size,z%size) end
-    return -1
+function empty_chunk:set(x, y, z, t)
+    self:init()
+    return self:set(x, y, z, t)
 end
 
-function Chunk:setBlock(x,y,z, value)
-    if self.dead then return -1 end
-
-    if x >= 0 and y >= 0 and z >= 0 and x < size and y < size and z < size then
-        local i = x + size*y + size*size*z
-        local oldvalue = self.datapointer[i]
-        self.datapointer[i] = value
-        return oldvalue
-    end
-
-    local chunk = self.world:getChunkFromWorld(self.x+x,self.y+y,self.z+z)
-    if chunk then return chunk:setBlock(x%size,y%size,z%size, value) end
+function empty_chunk:dump(uncompressed)
+    return ""
 end
 
-function Chunk:draw()
-    if self.model and not self.dead then
-        self.model:draw()
+function empty_chunk:init()
+    self.data = love.data.newByteData(chunk.size ^ 3)
+    self.ptr = ffi.cast("uint8_t *", self.data:getFFIPointer())
+    setmetatable(self, { __index = chunk })
+end
+
+function empty_chunk:insert(id)
+    return chunk.insert(self, id)
+end
+
+function empty_chunk:remove(id)
+    return chunk.remove(self, id)
+end
+
+function empty_chunk:destroy()
+
+end
+
+function chunk.new()
+    local new = {}
+    new.entities = {}
+    new = setmetatable(new, { __index = empty_chunk })
+    return new
+end
+
+function chunk:init()
+    error("Chunk already initialized!")
+end
+
+function chunk:set(x, y, z, t)
+    if x >= 0 and x < size and y >= 0 and y < size and z >= 0 and z < size then
+        self.ptr[x * chunk.size * chunk.size + z * chunk.size + y] = t
+    else
+        error("chunk:set(" .. x .. "," .. y .. "," .. z .. "," .. t .. ") out of bounds")
     end
 end
 
-function Chunk:destroy()
-    if self.model then self.model.mesh:release() end
-    self.dead = true
+function chunk:get(x, y, z)
+    if x >= 0 and x < size and y >= 0 and y < size and z >= 0 and z < size then
+        return self.ptr[x * size * size + z * size + y]
+    else
+        return -1
+    end
+end
+
+function chunk:insert(id)
+    self.entities[id] = true
+end
+
+function chunk:remove(id)
+    local was_before = self.entities[id]
+    self.entities[id] = nil
+    return was_before
+end
+
+function chunk:destroy()
     self.data:release()
-    self.world.chunks[self.hash] = nil
+end
 
-    for id, _ in pairs(self.entities) do
-        self.world.entities[id].dead = true -- kill all child entities
+function chunk:dump(uncompressed)
+    if not uncompressed then
+        return love.data.compress("string", "gzip", self.data)
+    else
+        return self.data:getString()
     end
 end
 
-function Chunk:onEntityEnter(e, prev) --[[overload]] end
-function Chunk:onEntityLeave(e, next) --[[overload]] end
-
-function Chunk.hashFrom(x, y, z)
-    return ("%d/%d/%d"):format(x, y, z)
-end
-
-function Chunk.fromHash(hash)
-    local n = {}
-    local coord = 1
-    local coords = {0, 0, 0}
-    for i=1,#hash do
-        assert(coord < 3)
-
-        if hash[i] == string.byte('/') then
-            coords[coord] = tonumber(table.concat(n))
-            n = {}
-        else
-            table.insert(n, string.char(hash[i]))
-        end
-    end
-    return coords[0], coords[1], coords[2]
-end
-
-return Chunk
+return chunk
