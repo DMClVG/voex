@@ -8,13 +8,18 @@ function signal.new()
     return new
 end
 
-function signal:catch(handle)
-    table.insert(self.subs, handle)
+function signal:catch(handle, ...)
+    table.insert(self.subs, { handle=handle, opt={...}})
 end
 
 function signal:emit(...)
-    for i = 0, #self.subs do
-        self.subs[i](...)
+    for i = 1, #self.subs do
+        local sub = self.subs[i]
+        if #sub.opt ~= 0 then
+          sub.handle(unpack(sub.opt), ...)
+        else
+          sub.handle(...)
+        end
     end
 end
 
