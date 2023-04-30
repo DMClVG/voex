@@ -9,7 +9,7 @@ local CHANNEL_COUNT = 5
 function socket.new(enet)
     local new = {}
     new.enet = enet
-    new.peers = {}
+    new.peerdatas = {}
 
     new.onconnect = loex.signal.new()
     new.ondisconnect = loex.signal.new()
@@ -80,6 +80,10 @@ local function decode(packet)
     return out
 end
 
+function socket:peerdata(peer)
+    return self.peerdatas[peer:index()]
+end
+
 function socket:service()
     local event = self.enet:service()
     while event do
@@ -88,15 +92,13 @@ function socket:service()
         local success, result = pcall(function()
             if event.type == "receive" then
                 local packet = decode(event.data)
-                self.onreceive:emit(self.peers[peerid], packet)
+                self.onreceive:emit(event.peer, packet)
             elseif event.type == "connect" then
-                local peer = {}
-                setmetatable(peer, { __index = event.peer })
-                self.metadata[peerid] = peer
-                self.onconnect:emit(peer)
+                self.peerdatas[peerid] = {}
+                self.onconnect:emit(event.peer)
             elseif event.type == "disconnect" then
-                self.ondisconnect:emit(self.peers[peerid])
-                self.metadata[peerid] = nil
+                self.ondisconnect:emit(event.peer)
+                self.peerdatas[peerid] = nil
             end
         end)
         if not success then
@@ -108,8 +110,8 @@ function socket:service()
 end
 
 function socket:disconnect()
-    for _, peer in pairs(self.peers) do
-        peer:disconnect()
+    for i = 1, self.enet:peer_count() do
+        self.enet:get_peer(i):disconnect()
     end
     self.enet:flush()
 end
