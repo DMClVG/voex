@@ -54,7 +54,7 @@ end
 
 function chunk:set(x, y, z, t)
     if x >= 0 and x < size and y >= 0 and y < size and z >= 0 and z < size then
-        self.ptr[x * chunk.size * chunk.size + z * chunk.size + y] = t
+        self.ptr[z * chunk.size * chunk.size + y * chunk.size + x] = t
     else
         error("chunk:set(" .. x .. "," .. y .. "," .. z .. "," .. t .. ") out of bounds")
     end
@@ -62,7 +62,7 @@ end
 
 function chunk:get(x, y, z)
     if x >= 0 and x < size and y >= 0 and y < size and z >= 0 and z < size then
-        return self.ptr[x * size * size + z * size + y]
+        return self.ptr[z * size * size + y * size + x]
     else
         return -1
     end
