@@ -1,132 +1,95 @@
-local World = Object:extend()
-local Chunk = loex.Chunk
-local size = Chunk.size
+local chunk = loex.chunk
+local size = chunk.size
 local floor = math.floor
 
-World.singleton = nil
+local world = {}
+world.__index = world
 
-function World:new()
-    self.chunks = {}
-    self.entities = {}
+local function chunkhash(x, y, z) return table.concat({ x, y, z }, "/") end
+
+function world.new()
+  local new = {}
+  new.chunks = {}
+  new.entities = {}
+
+  new.ontilemodified = loex.signal.new()
+  new.onentityadded = loex.signal.new()
+  new.onentityremoved = loex.signal.new()
+  new.onchunkadded = loex.signal.new()
+  new.onchunkremoved = loex.signal.new()
+
+  setmetatable(new, world)
+
+  return new
 end
 
-function World:update(dt)
+function world:iterate() return pairs(self.entities) end
 
-    local entities = self.entities
-
-    for id, entity in pairs(entities) do
-        if not entity.dead then
-            entity:update(dt)
-            -- update entity owner (the chunk that owns a entity given its position)
-            entity:updateOwner()
-        else
-            entities[id] = nil
-            self:onEntityRemoved(entity)
-            entity:destroy()
-        end
-    end
-    self:onUpdated(dt)
+function world:insert(e)
+  assert(not self.entities[e.id])
+  self.entities[e.id] = e
+  self.onentityadded:emit(e)
 end
 
-function World:onUpdated(dt) --[[overload]] end
-function World:onChunkAdded(chunk) --[[overload]] end
-function World:onChunkRemoved(chunk) --[[overload]] end
-function World:onEntityAdded(entity) --[[overload]] end
-function World:onEntityRemoved(entity) --[[overload]] end
-function World:onTileChanged(x, y, z, value) --[[overload]] end
-
-function World:addEntity(entity)
-    assert(self.entities.world == nil)
-    self.entities[entity.id] = entity
-    entity.world = self
-    entity:updateOwner()
-    self:onEntityAdded(entity)
+function world:remove(e)
+  assert(e)
+  local id
+  if type(e) == "table" then
+    id = e.id
+  else
+    id = e
+    e = self.entities[id]
+  end
+  assert(self.entities[id])
+  self.entities[id] = nil
+  self.onentityremoved:emit(e)
 end
 
-function World:addChunk(chunk)
-    assert(not self.chunks[chunk.hash])
-    self.chunks[chunk.hash] = chunk
-    self:onChunkAdded(chunk)
+function world:get(id) return self.entities[id] end
+
+function world:chunk(x, y, z, c)
+  local hash = chunkhash(x, y, z)
+  if c then
+    assert(not self.chunks[hash])
+    self.chunks[hash] = c
+    self.onchunkadded:emit(c)
+  else
+    return self.chunks[hash]
+  end
 end
 
-function World:getChunk(x, y, z)
-    return self.chunks[Chunk.hashFrom(x, y, z)]
+function world:removechunk(x, y, z)
+  local hash = chunkhash(x, y, z)
+  local c = self.chunks[hash]
+  assert(c)
+  self.chunks[hash] = nil
+  self.onchunkremoved:emit(c)
+  return c
 end
 
-function World:getEntity(id)
-    return self.entities[id]
-end
+function world:tile(x, y, z, t)
+  if t then
+    local chunk = self:chunk(floor(x / size), floor(y / size), floor(z / size))
+    assert(chunk)
 
-function World:queryOne(class)
-    for _, entity in pairs(self.entities) do
-        entity:is(class)
-    end
-    return nil
-end
-
-function World:query(class)
-    if class == loex.Entity then
-        return self.entities
-    end
-    local out = {}
-    for _, entity in pairs(self.entities) do
-        if entity:is(class) then
-            out[entity.id] = entity
-        end
-    end
-    return out
-end
-
-local cube = { w=0.5, h=0.5, d=0.5 }
-local intersect = loex.Utils.intersectBoxAndBox
-function World:intersectWithWorld(box) 
-    for i = floor(box.x-box.w),floor(box.x+box.w) do
-        for j = floor(box.y-box.d),floor(box.y+box.d) do
-            for k = floor(box.z-box.h),floor(box.z+box.h) do
-                cube.x = i + 0.5
-                cube.y = j + 0.5
-                cube.z = k + 0.5
-                if self:getBlockFromWorld(i, j, k) > 0 and intersect(box, cube) then
-                    return i, j, k
-                end
-            end
-        end
-    end
-    return false
-end
-
-function World:getChunkFromWorld(x, y, z)
-    local floor = math.floor
-    return self:getChunk(floor(x / size), floor(y / size), floor(z / size))
-end
-
-function World:getBlockFromWorld(x, y, z)
-    local floor = math.floor
-    local chunk = self:getChunk(floor(x / size), floor(y / size), floor(z / size))
-    if chunk then return chunk:getBlock(x % size, y % size, z % size) end
+    local old = chunk:set(x % size, y % size, z % size, t)
+    if old ~= t then self.ontilemodified:emit(x, y, z, t) end
+  else
+    local chunk = self:chunk(floor(x / size), floor(y / size), floor(z / size))
+    if chunk then return chunk:get(x % size, y % size, z % size) end
     return -1
+  end
 end
 
-function World:setBlockFromWorld(x, y, z, value)
-    local floor = math.floor
-    local chunk = self:getChunk(floor(x / size), floor(y / size), floor(z / size))
-    if chunk then
-        local old = chunk:setBlock(x % size, y % size, z % size, value)
-        if old ~= value then
-            self:onTileChanged(x, y, z, value)
-        end
-    else
-        assert(false)
-    end
+function world:neighbourhood(x, y, z)
+  return self:chunk(x + 1, y, z),
+    self:chunk(x - 1, y, z),
+    self:chunk(x, y + 1, z),
+    self:chunk(x, y - 1, z),
+    self:chunk(x, y, z + 1),
+    self:chunk(x, y, z - 1)
 end
 
-function World:getNeighoursOfChunk(x, y, z)
-    return self:getChunk(x+1,y,z),
-            self:getChunk(x-1,y,z),
-            self:getChunk(x,y+1,z),
-            self:getChunk(x,y-1,z),
-            self:getChunk(x,y,z+1),
-            self:getChunk(x,y,z-1)
-end
+function world:destroy() end
 
-return World
+return world

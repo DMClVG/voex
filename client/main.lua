@@ -3,129 +3,110 @@ package.path = package.path .. ";?/init.lua"
 
 lg = love.graphics
 ---@diagnostic disable-next-line: missing-parameter
-lg.setDefaultFilter "nearest"
+lg.setDefaultFilter("nearest")
 
-io.stdout:setvbuf "no"
-
-g3d = require "lib/g3d"
-scene = require "lib/scene"
-enet = require "enet"
-
-common = require "common"
-
-
-require "scenes.gameworld"
-require "physics"
-
-packets = require "packets"
-
-local focused = false
-
-local netHandler = require "nethandler"
+io.stdout:setvbuf("no")
 
 CHANNEL_ONE = 0
 CHANNEL_EVENTS = 1
 CHANNEL_UPDATES = 2
 
+g3d = require("lib/g3d")
+scene = require("lib/scene")
+enet = require("enet")
+
+require("common")
+
+require("scenes/gameworld")
+require("physics")
+
+packets = require("packets")
+local nethandler = require("nethandler")
+
+local focused = false
+
+local socket
+_G.master = nil
+
 function love.load(args)
-    if #args < 3 then
-        print("Usage: client [address] [port] [username]")
-        love.event.quit(-1)
-        return
-    end
+  if #args < 3 then
+    print("Usage: client [address] [port] [username]")
+    love.event.quit(-1)
+    return
+  end
 
-    local address = args[1]..":"..args[2]
-    username = args[3]
+  local address = args[1] .. ":" .. args[2]
+  username = args[3]
 
-    net = loex.Network.connect(address)
-    net.onPeerConnect = onPeerConnect
-    net.onPeerDisconnect = onPeerDisconnect
-    net.onPeerReceive = onPeerReceive
+  socket = loex.socket.connect(address)
+  socket.onconnect:catch(onconnect)
+  socket.ondisconnect:catch(ondisconnect)
+  socket.onreceive:catch(onreceive)
 
-    font = love.graphics.newFont(50)
-    love.graphics.setFont(font)
+  font = love.graphics.newFont(50)
+  love.graphics.setFont(font)
 
-    scene(require("scenes/joinScreen"))
+  scene(require("scenes/joinscreen"))
 end
 
-function onPeerConnect(peer, _)
-    print("Connected!")
+function onconnect(peer)
+  print("Connected!")
 
-    net.master = peer
-
-    net.master:send(packets.Join(username), CHANNEL_ONE)
+  master = peer
+  master:send(packets.join(username), CHANNEL_ONE)
 end
 
-function onPeerDisconnect(peer, _)
-    scene(require("scenes/disconnectedScreen"))
-end
+function ondisconnect(_) scene(require("scenes/errorscreen"), "disconnected :(") end
 
-function onPeerReceive(peer, _, data)
-    -- for k, v in pairs(data) do
-    --     if k ~= "bin" then
-    --         print(k, v)
-    --     else
-    --         print(k, v:getSize())
-    --     end
-    -- end
-    -- print("Received ".. data.type)
+function onreceive(_, packet)
+  print("Received " .. packet.type)
 
-    local handle = netHandler[data.type]
-    if not handle then
-        error("Unkown packet type "..data.type)
-    else
-        handle(data, net, loex.World.singleton)
-    end
+  local handle = nethandler[packet.type]
+  if not handle then
+    error("Unknown packet type " .. packet.type)
+  else
+    handle(scene(), packet)
+  end
 end
 
 function love.update(dt)
-    net:service()
+  socket:service()
 
-    local scene = scene()
-    if scene then
-        scene:update(dt)
-    end
+  local scene = scene()
+  if scene and scene.update then scene:update(dt) end
 end
 
 function love.draw()
-    local scene = scene()
-    if scene then
-        scene:draw()
-    end
+  local scene = scene()
+  if scene and scene.draw then scene:draw() end
 end
 
 function love.mousepressed()
-    if not focused then
-        focused = true
-    end
+  if not focused then focused = true end
 end
 
-function love.focus(hasFocus)
-    focused = hasFocus
-end
+function love.focus(hasFocus) focused = hasFocus end
 
 function love.mousemoved(x, y, dx, dy)
-    local scene = scene()
-    if scene and focused then
-        scene:mousemoved(x, y, dx, dy)
-    end
+  local scene = scene()
+  if scene and focused and scene.mousemoved then scene:mousemoved(x, y, dx, dy) end
 end
 
 function love.keypressed(k)
-    if k == "escape" then
-        love.mouse.setRelativeMode(false)
-        focused = false
-    end
+  if k == "escape" then
+    love.mouse.setRelativeMode(false)
+    focused = false
+  end
 end
 
 function love.resize(w, h)
-    g3d.camera.aspectRatio = w / h
-    g3d.camera.updateProjectionMatrix()
+  g3d.camera.aspectRatio = w / h
+  g3d.camera.updateProjectionMatrix()
 end
 
 function love.quit()
-    if net then
-        print("Disconnecting ....")
-        net:disconnect()
-    end
+  if socket then
+    print("Disconnecting ....")
+    socket:disconnect()
+  end
 end
