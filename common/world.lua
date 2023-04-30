@@ -36,6 +36,7 @@ function world:insert(e)
 end
 
 function world:remove(e)
+    assert(e)
     local id
     if type(e) == "table" then
         id = e.id
