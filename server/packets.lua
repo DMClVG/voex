@@ -1,53 +1,43 @@
 local packets = {}
 
-function packets.JoinSucceeded(id, x, y, z)
-    return ("[type=JoinSucceeded;x=%d;y=%d;z=%d;id=%s;]"):format(x, y, z, id)
+function packets.joinsuccess(id, x, y, z)
+    return ("[type=joinsuccess;x=%d;y=%d;z=%d;id=%s;]"):format(x, y, z, id)
 end
 
-function packets.JoinFailed(cause)
-    return ("[type=JoinFailed;cause=%s;]"):format(cause)
+function packets.joinfailure(cause)
+    return ("[type=joinfailure;cause=%s;]"):format(cause)
 end
 
-function packets.ChunkAdded(tiles, cx, cy, cz)
-    return table.concat({ ("[type=ChunkAdded;cx=%d;cy=%d;cz=%d;]"):format(cx, cy, cz), tiles:getString() })
+function packets.chunkadd(tiles, cx, cy, cz)
+    return table.concat({ ("[type=chunkadd;cx=%d;cy=%d;cz=%d;]"):format(cx, cy, cz), tiles })
 end
 
-function packets.ChunkRemoved(cx, cy, cz)
-    return ("[type=ChunkRemoved;cx=%d;cy=%d;cz=%d;]"):format(cx, cy, cz)
+function packets.chunkremove(cx, cy, cz)
+    return ("[type=chunkremove;cx=%d;cy=%d;cz=%d;]"):format(cx, cy, cz)
 end
 
-function packets.Placed(x, y, z, t)
-    return ("[type=Placed;x=%d;y=%d;z=%d;t=%d;]"):format(x, y, z, t)
+function packets.placed(x, y, z, t)
+    return ("[type=placed;x=%d;y=%d;z=%d;t=%d;]"):format(x, y, z, t)
 end
 
-function packets.Broken(x, y, z)
-    return ("[type=Broken;x=%d;y=%d;z=%d;]"):format(x, y, z)
+function packets.broken(x, y, z)
+    return ("[type=broken;x=%d;y=%d;z=%d;]"):format(x, y, z)
 end
 
-function packets.EntityAdded(id, type, x, y, z, extra)
-    local packet = ("type=EntityAdded;eType=%s;x=%f;y=%f;z=%f;id=%s;"):format(type, x, y, z, id)
-
-    local extrapacket = {}
-    if extra then
-        for k, v in pairs(extra) do
-            table.insert(extrapacket, k)
-            table.insert(extrapacket, "=")
-            table.insert(extrapacket, tostring(v))
-            table.insert(extrapacket, ";")
-        end
-    end
-    local extrapacket = table.concat(extrapacket)
-
-    return table.concat({"[", packet, extrapacket, "]"})
+function packets.entityadd(id, x, y, z)
+    return ("[type=entityadd;x=%f;y=%f;z=%f;id=%s;]"):format(x, y, z, id)
 end
 
-function packets.EntityRemoved(id)
-    return ("[type=EntityRemoved;id=%s;]"):format(id)
+function packets.entityremove(id)
+    return ("[type=entityremove;id=%s;]"):format(id)
 end
 
-function packets.EntityMoved(id, x, y, z)
-    return ("[type=EntityMoved;x=%f;y=%f;z=%f;id=%s;]"):format(x, y, z, id)
-end
+-- function packets.entitymove(id, x, y, z)
+--     return ("[type=entitymove;x=%f;y=%f;z=%f;id=%s;]"):format(x, y, z, id)
+-- end
 
+function packets.entityremoteset(id, k, v)
+    return ("[type=entityremoteset;id=%s;property=%s;value=%f;]"):format(id, k, v)
+end
 
 return packets

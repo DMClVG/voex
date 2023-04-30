@@ -1,71 +1,81 @@
-local netHandler = {}
+local nethandler = {}
 
-function netHandler.JoinSucceeded(data, net, world)
-    local spawnX, spawnY, spawnZ = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-    local playerID = data.id
-    local playerEntity = loex.entities.Player(spawnX, spawnY, spawnZ, playerID)
-    playerEntity.username = username
+function nethandler.joinsuccess(_, d)
+    local spawnx, spawny, spawnz = tonumber(d.x), tonumber(d.y), tonumber(d.z)
+    assert(d.id)
+    local player = loex.entity.new(spawnx, spawny, spawnz, d.id)
+    player.username = username
 
-    print(("Joined under username ".. username .. " (ID: " .. playerID .. ") at spawn point %d, %d, %d"):format(spawnX, spawnY, spawnZ))
+    print(("Joined under username " .. player.username .. " (ID: " .. player.id .. ") at spawn point %d, %d, %d"):format(
+        spawnx,
+        spawny, spawnz))
 
-    loex.World.singleton = GameWorld(playerEntity)
-    scene(loex.World.singleton)
+    scene(require("scenes/gameworld"), player)
 end
 
-function netHandler.JoinFailed(data, net, world)
-    scene(require("scenes/joinFailedScreen"), data.cause)
+function nethandler.joinfailure(_, d)
+    scene(require("scenes/errorscreen"), d.cause)
 end
 
-function netHandler.ChunkAdded(data, net, world)
-    world:addChunk(loex.Chunk.fromPacket(data))
-end
-
-function netHandler.Broken(data, net, world)
-    local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
+function nethandler.broken(g, d)
+    local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
     local hash = ("%d/%d/%d"):format(x, y, z)
-    if not world.breakQueue[hash] then
-        world:setBlockAndRemesh(x, y, z, loex.Tiles.air.id, true)
+    if not g.breakqueue[hash] then
+        g.world:tile(x, y, z, loex.tiles.air.id, true)
     end
-    world.breakQueue[hash] = nil
+    g.breakqueue[hash] = nil
 end
 
-function netHandler.Placed(data, net, world)
-    local x, y, z, t = tonumber(data.x), tonumber(data.y), tonumber(data.z), tonumber(data.t)
+function nethandler.placed(g, d)
+    local x, y, z, t = tonumber(d.x), tonumber(d.y), tonumber(d.z), tonumber(d.t)
     local hash = ("%d/%d/%d"):format(x, y, z)
-    if not world.placeQueue[hash] or world.placeQueue[hash].placed ~= t then
-        world:setBlockAndRemesh(x, y, z, t)
+    if not g.placequeue[hash] or g.placequeue[hash].placed ~= t then
+        g.world:tile(x, y, z, t)
     end
-    world.placeQueue[hash] = nil
+    g.placequeue[hash] = nil
 end
 
-function netHandler.EntityMoved(data, net, world)
-    local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-    local entity = world:getEntity(data.id)
+function nethandler.entitymove(g, d)
+    assert(false)
+    local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
+    local entity = g.world:get(d.id)
     assert(entity)
     entity.x = x
     entity.y = y
     entity.z = z
 end
 
-function netHandler.EntityAdded(data, net, world)
-    if data.id == world.player.id then return end
+function nethandler.entityadd(g, d)
+    if d.id == g.player.id then return end
 
-    local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
-    local entity = loex.entities[data.eType](x, y, z, data.id)
-    entity:remoteSpawn(data)
-    world:addEntity(entity)
+    local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
+    local entity = loex.entity.new(x, y, z, d.id)
+    g.world:insert(entity)
 end
 
-function netHandler.EntityRemoved(data, net, world)
-    local entity = world:getEntity(data.id)
+function nethandler.entityremove(g, d)
+    local entity = g.world:get(d.id)
     entity.dead = true
 end
 
-function netHandler.ChunkRemoved(data, net, world)
-    local cx, cy, cz = tonumber(data.cx), tonumber(data.cy), tonumber(data.cz)
-    local chunk = world:getChunk(cx, cy, cz)
-    assert(chunk)
-    chunk:destroy()
+function nethandler.entityremoteset(g, d)
+    local entity = g.world:get(d.id)
+    if entity.id == g.player.id and d.property:match("[xyz]") then return end -- TODO: position correction
+    entity[d.property] = d.value
 end
 
-return netHandler
+function nethandler.chunkadd(g, d)
+    assert(d.bin:getSize() == loex.chunk.size ^ 3, "Chunk data of wrong size!")
+
+    local cx, cy, cz = tonumber(d.cx), tonumber(d.cy), tonumber(d.cz)
+    local c = loex.chunk.new(cx, cy, cz)
+    c:init(d.bin)
+    g.world:chunk(cx, cy, cz, c)
+end
+
+function nethandler.chunkremove(g, d)
+    local cx, cy, cz = tonumber(d.cx), tonumber(d.cy), tonumber(d.cz)
+    g.world:removechunk(cx, cy, cz):destroy()
+end
+
+return nethandler

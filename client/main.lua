@@ -7,25 +7,26 @@ lg.setDefaultFilter "nearest"
 
 io.stdout:setvbuf "no"
 
+CHANNEL_ONE = 0
+CHANNEL_EVENTS = 1
+CHANNEL_UPDATES = 2
+
 g3d = require "lib/g3d"
 scene = require "lib/scene"
 enet = require "enet"
 
-common = require "common"
+require "common"
 
-
-require "scenes.gameworld"
+require "scenes/gameworld"
 require "physics"
 
 packets = require "packets"
+local nethandler = require "nethandler"
 
 local focused = false
 
-local netHandler = require "nethandler"
-
-CHANNEL_ONE = 0
-CHANNEL_EVENTS = 1
-CHANNEL_UPDATES = 2
+local socket
+_G.master = nil
 
 function love.load(args)
     if #args < 3 then
@@ -34,62 +35,54 @@ function love.load(args)
         return
     end
 
-    local address = args[1]..":"..args[2]
+    local address = args[1] .. ":" .. args[2]
     username = args[3]
 
-    net = loex.Network.connect(address)
-    net.onPeerConnect = onPeerConnect
-    net.onPeerDisconnect = onPeerDisconnect
-    net.onPeerReceive = onPeerReceive
+    socket = loex.socket.connect(address)
+    socket.onconnect:catch(onconnect)
+    socket.ondisconnect:catch(ondisconnect)
+    socket.onreceive:catch(onreceive)
 
     font = love.graphics.newFont(50)
     love.graphics.setFont(font)
 
-    scene(require("scenes/joinScreen"))
+    scene(require("scenes/joinscreen"))
 end
 
-function onPeerConnect(peer, _)
+function onconnect(peer)
     print("Connected!")
 
-    net.master = peer
-
-    net.master:send(packets.Join(username), CHANNEL_ONE)
+    master = peer
+    master:send(packets.join(username), CHANNEL_ONE)
 end
 
-function onPeerDisconnect(peer, _)
-    scene(require("scenes/disconnectedScreen"))
+function ondisconnect(_)
+    scene(require("scenes/errorscreen"), "disconnected :(")
 end
 
-function onPeerReceive(peer, _, data)
-    -- for k, v in pairs(data) do
-    --     if k ~= "bin" then
-    --         print(k, v)
-    --     else
-    --         print(k, v:getSize())
-    --     end
-    -- end
-    -- print("Received ".. data.type)
+function onreceive(_, packet)
+    print("Received " .. packet.type)
 
-    local handle = netHandler[data.type]
+    local handle = nethandler[packet.type]
     if not handle then
-        error("Unkown packet type "..data.type)
+        error("Unknown packet type " .. packet.type)
     else
-        handle(data, net, loex.World.singleton)
+        handle(scene(), packet)
     end
 end
 
 function love.update(dt)
-    net:service()
+    socket:service()
 
     local scene = scene()
-    if scene then
+    if scene and scene.update then
         scene:update(dt)
     end
 end
 
 function love.draw()
     local scene = scene()
-    if scene then
+    if scene and scene.draw then
         scene:draw()
     end
 end
@@ -106,7 +99,7 @@ end
 
 function love.mousemoved(x, y, dx, dy)
     local scene = scene()
-    if scene and focused then
+    if scene and focused and scene.mousemoved then
         scene:mousemoved(x, y, dx, dy)
     end
 end
@@ -124,8 +117,8 @@ function love.resize(w, h)
 end
 
 function love.quit()
-    if net then
+    if socket then
         print("Disconnecting ....")
-        net:disconnect()
+        socket:disconnect()
     end
 end

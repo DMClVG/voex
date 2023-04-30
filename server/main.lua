@@ -3,23 +3,48 @@ package.path = package.path .. ";?/init.lua"
 
 IS_SERVER = true
 
-common = require "common"
-enet = require "enet"
-
-ServerWorld = require "serverworld"
-ServerPlayer = require "serverplayer"
-ServerChunk = require "serverchunk"
-packets = require "./packets"
-
-players = { peers = {} }
-
-banlist = { }
-takenUsernames = {}
-
 CHANNEL_ONE = 0
 CHANNEL_CHUNKS = 1
 CHANNEL_EVENTS = 3
 CHANNEL_UPDATES = 4
+
+common = require "common"
+packets = require "packets"
+remote = require "remote"
+
+banlist = {}
+takenusernames = {}
+
+local socket
+local world
+
+local tiles = loex.tiles
+local size = loex.chunk.size
+
+local function genchunk(c)
+    c:init()
+    local grass = tiles.air.id
+    local dirt = tiles.dirt.id
+    local stone = tiles.stone.id
+    local ptr = c.ptr
+    local x, y, z = c.x * size, c.y * size, c.z * size
+    local f = 0.125 / 10
+    for i = 0, size - 1 do
+        for j = 0, size - 1 do
+            local h = math.floor(love.math.noise((x + i) * f, (y + j) * f) * 17)
+            for k = 0, math.min(h - z, size - 1) do
+                if z + k == h then
+                    ptr[i + j * size + k * size * size] = grass
+                elseif z + k > h - 5 then
+                    ptr[i + j * size + k * size * size] = dirt
+                else
+                    ptr[i + j * size + k * size * size] = stone
+                end
+            end
+        end
+    end
+    return c
+end
 
 function love.load(args)
     if #args < 1 then
@@ -30,76 +55,174 @@ function love.load(args)
     port = tonumber(args[1])
     print("starting server on port " .. tostring(port) .. "...")
 
-    net = loex.Network.host(port, 64)
-    net.onPeerConnect = onPeerConnect
-    net.onPeerDisconnect = onPeerDisconnect
-    net.onPeerReceive = onPeerReceive
+    socket = loex.socket.host(port, 64)
+    socket.onconnect:catch(onconnect)
+    socket.ondisconnect:catch(ondisconnect)
+    socket.onreceive:catch(onreceive)
 
-    world = ServerWorld(net)
-    loex.World.singleton = world
+    world = loex.world.new()
+    world.onentityadded:catch(world_onentityadded)
+    world.onentityremoved:catch(world_onentityremoved)
+
+    for i = -2, 2 do
+        for j = -2, 2 do
+            for k = -2, 2 do
+                world:chunk(i, j, k, genchunk(loex.chunk.new(i, j, k)))
+            end
+        end
+    end
+
+
+    -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
+    -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
+    -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
+    -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
 end
 
-function onPeerConnect(peer, user)
-    print("Connected!")
-end
-
-function onPeerDisconnect(peer, user)
-    if not user.playerEntity then
-        print("Peer disconnected!")
-    else
-        print(user.playerEntity.username.. " left the game :<")
-        user.playerEntity.dead = true
-        lume.remove(players.peers, peer)
-        lume.remove(players, user.playerEntity)
-        takenUsernames[user.playerEntity.username] = nil
+function world_onentityadded(e)
+    print(e.id .. " added")
+    local packet = packets.entityadd(e.id, e.x, e.y, e.z)
+    for _, e in pairs(world.entities) do
+        if e:has("player") then
+            e.master:send(packet)
+        end
     end
 end
 
-function onPeerReceive(peer, user, data)
-    -- print("Received "..data.type)
+function world_onentityremoved(e)
+    print(e.id .. " removed")
+    local packet = packets.entityremove(e.id)
+    for _, e in pairs(world.entities) do
+        if e:has("player") then
+            e.master:send(packet)
+        end
+    end
+end
 
-    if user.playerEntity == nil then
-        if data.type == "Join" then
-            
-            local err = verifyJoin(data.username)
+function onconnect(peer)
+    print("Connected!")
+end
+
+function ondisconnect(peer)
+    local peerdata = socket:peerdata(peer)
+    if peerdata.playerentity then
+        print(peerdata.playerentity.username .. " left the game :<")
+        world:remove(peerdata.playerentity)
+        takenusernames[peerdata.playerentity.username] = nil
+    end
+end
+
+function handle_player_packet(player, packet)
+    local handles = {
+        ["move"] = function(p, d)
+            local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
+            p.x = x
+            p.y = y
+            p.z = z
+        end,
+        ["place"] = function(p, d)
+            local x, y, z, t = tonumber(d.x), tonumber(d.y), tonumber(d.z), tonumber(d.t)
+            world:tile(x, y, z, t)
+            broadcast(packets.placed(x, y, z, t))
+        end,
+        ["breaktile"] = function(p, d)
+            local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
+            world:tile(x, y, z, tiles.air.id)
+            broadcast(packets.broken(x, y, z))
+        end
+    }
+    handles[packet.type](player, packet)
+end
+
+function sendworld(peer)
+    for _, chunk in pairs(world.chunks) do
+        peer:send(packets.chunkadd(chunk:dump(true), chunk.x, chunk.y, chunk.z))
+    end
+    for _, e in pairs(world.entities) do
+        peer:send(packets.entityadd(e.id, e.x, e.y, e.z))
+    end
+end
+function broadcast(packet)
+    for _, e in pairs(world.entities) do
+        if e:has("player") then
+            e.master:send(packet)
+        end
+    end
+end
+
+function broadcast_remoteset(remote, property, value)
+    -- print(e.id .. " set")
+    local packet = packets.entityremoteset(remote.id, property, value)
+    broadcast(packet)
+end
+
+function onreceive(peer, packet)
+    print("Received " .. packet.type)
+    local peerdata = socket:peerdata(peer)
+
+    if peerdata.playerentity == nil then
+        if packet.type == "join" then
+            local err = verify(packet.username)
             if err then
-                peer:send(packets.JoinFailed(err), CHANNEL_ONE)
+                peer:send(packets.joinfailure(err), CHANNEL_ONE)
                 peer:disconnect_later()
                 return
             end
+            local player = player(0, 0, 50, nil, packet.username, peer)
 
-            local player = ServerPlayer(0, 0, 50)
-            player.username = data.username
-            player.master = peer
-            takenUsernames[player.username] = true
-            
-            print(player.username.. " joined the game :>")
+            peer:send(packets.joinsuccess(player.id, player.x, player.y, player.z), CHANNEL_ONE)
 
-            peer:send(packets.JoinSucceeded(player.id, player.x, player.y, player.z), CHANNEL_ONE)
-            
-            world:addEntity(player)
-    
-            user.playerEntity = player
-            table.insert(players.peers, peer)
-            table.insert(players, player)
+            world:insert(player)
+            peerdata.playerentity = player
+
+            takenusernames[player.username] = true
+
+
+            print(player.username .. " joined the game :>")
+
+            sendworld(peer)
+        else
+            error("invalid packet for ghost peer")
         end
     else
-        user.playerEntity["P"..data.type](user.playerEntity, data)
+        handle_player_packet(peerdata.playerentity, packet)
     end
 end
 
 function love.update(dt)
-    net:service()
-    world:update(dt)
-end
+    socket:service()
 
-function love.quit()
-    if net then
-        net:disconnect()
+    for _, e in pairs(world.entities) do
+        if e:has("remote") then
+            e.remote.x = e.x
+            e.remote.y = e.y
+            e.remote.z = e.z
+        end
+    end
+
+    for _, e in pairs(world.entities) do
+        if e:has("remote") then
+            for property, _ in pairs(e.remote.edits) do
+                broadcast_remoteset(e, property, e.remote[property])
+                e.remote.edits[property] = nil
+            end
+        end
     end
 end
 
-function verifyJoin(username)
+function love.quit()
+    socket:disconnect()
+end
+
+function player(x, y, z, id, username, master)
+    local player = remote(x, y, z, id)
+    player:tag("player")
+    player.username = username
+    player.master = master
+    return player
+end
+
+function verify(username)
     local validUsername = "^[a-zA-Z_]+$"
 
     if banlist[username] then
@@ -118,7 +241,7 @@ function verifyJoin(username)
         return ("Invalid username (It has to be good)")
     end
 
-    if takenUsernames[username] then
+    if takenusernames[username] then
         return "Username already taken. Try again :)"
     end
 end

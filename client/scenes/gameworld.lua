@@ -1,395 +1,332 @@
-GameWorld = loex.World:extend()
-local Chunk = loex.Chunk
-local size = Chunk.size
-
+local gameworld = {}
+local size = loex.chunk.size
+local floor = math.floor
 local threadpool = {}
 local threadusage = 0
 -- load up some threads so that chunk meshing won't block the main thread
-for i=1, 8 do
-    threadpool[i] = love.thread.newThread "scenes/chunkremesh.lua"
+for i = 1, 8 do
+  threadpool[i] = love.thread.newThread "scenes/chunkremesh.lua"
 end
-local threadchannels = {}
-
 local texturepack = lg.newImage "assets/texturepack.png"
-local wasLeftDown, wasRightDown, rightDown, leftDown
 
-local renderDistance = 5
+local mouse = {} -- mouse state
+local playerbox = {
+  x = 0,
+  y = 0,
+  z = 0,
+  w = 0.3,
+  d = 0.3,
+  h = 0.6
+}
+
+local playerobj = g3d.newModel("assets/player.obj", "assets/saul.png")
 
 -- create the mesh for the block cursor
-local blockCursor, blockCursorVisible
+local cursor, cursormodel
+
 do
-    local a = -0.005
-    local b = 1.005
-    blockCursor = g3d.newModel{
-        {a,a,a}, {b,a,a}, {b,a,a},
-        {a,a,a}, {a,a,b}, {a,a,b},
-        {b,a,b}, {a,a,b}, {a,a,b},
-        {b,a,b}, {b,a,a}, {b,a,a},
+  local a = -0.005
+  local b = 1.005
+  cursormodel = g3d.newModel {
+    { a, a, a }, { b, a, a }, { b, a, a },
+    { a, a, a }, { a, a, b }, { a, a, b },
+    { b, a, b }, { a, a, b }, { a, a, b },
+    { b, a, b }, { b, a, a }, { b, a, a },
 
-        {a,b,a}, {b,b,a}, {b,b,a},
-        {a,b,a}, {a,b,b}, {a,b,b},
-        {b,b,b}, {a,b,b}, {a,b,b},
-        {b,b,b}, {b,b,a}, {b,b,a},
+    { a, b, a }, { b, b, a }, { b, b, a },
+    { a, b, a }, { a, b, b }, { a, b, b },
+    { b, b, b }, { a, b, b }, { a, b, b },
+    { b, b, b }, { b, b, a }, { b, b, a },
 
-        {a,a,a}, {a,b,a}, {a,b,a},
-        {b,a,a}, {b,b,a}, {b,b,a},
-        {a,a,b}, {a,b,b}, {a,b,b},
-        {b,a,b}, {b,b,b}, {b,b,b},
-    }
+    { a, a, a }, { a, b, a }, { a, b, a },
+    { b, a, a }, { b, b, a }, { b, b, a },
+    { a, a, b }, { a, b, b }, { a, b, b },
+    { b, a, b }, { b, b, b }, { b, b, b },
+  }
 end
 
+function gameworld:init(player)
+  self.master = master
+  local world = loex.world.new()
+  world.ontilemodified:catch(self.ontilemodified, self)
+  world.onentityadded:catch(self.onentityadded, self)
+  world.onentityremoved:catch(self.onentityremoved, self)
+  world.onchunkadded:catch(self.onchunkadded, self)
+  world.onchunkremoved:catch(self.onchunkremoved, self)
 
-function GameWorld:new(playerEntity)
-    GameWorld.super.new(self)
-    
-    self.placeQueue = {}
-    self.breakQueue = {}
-    self.remeshQueue = {}
-    self.chunkCreationsThisFrame = 0
-    self.updatedThisFrame = false
+  self.world = world
 
-    self.player = playerEntity
+  self.placequeue = {}
+  self.breakqueue = {}
+  self.remeshqueue = {}
+  self.remeshchannel = love.thread.newChannel()
+  self.frameremeshes = 0
+  self.synctimer = 0
 
-    self:addEntity(playerEntity)
+  self.player = player
+  self.player:tag("player")
 
-    lg.setMeshCullMode("back")
+  self.world:insert(self.player)
+
+  lg.setMeshCullMode("back")
 end
 
-local function updateChunk(self, x, y, z)
-    x = x + math.floor(g3d.camera.position[1]/size)
-    y = y + math.floor(g3d.camera.position[2]/size)
-    z = z + math.floor(g3d.camera.position[3]/size)
-    local chunk = self:getChunk(x, y, z)
-    if chunk then
-        chunk.frames = 0
+function gameworld:onchunkadded(chunk)
+  local x, y, z = chunk.x, chunk.y, chunk.z
+  self:requestremesh(chunk)
+end
+
+function gameworld:onchunkremoved(chunk)
+end
+
+function gameworld:onentityadded(entity)
+  print(entity.id .. " added")
+end
+
+function gameworld:onentityremoved(entity)
+  print(entity.id .. " removed")
+end
+
+function gameworld:update(dt)
+  local world = self.world
+  -- collect mouse inputs
+  mouse.wasleft, mouse.wasright = mouse.left, mouse.right
+  mouse.left, mouse.right = love.mouse.isDown(1), love.mouse.isDown(2)
+  mouse.leftclick, mouse.rightclick = mouse.left and not mouse.wasleft, mouse.right and not mouse.wasright
+
+  local lagdelay = 0.5
+  -- handle place and break timeouts
+  for key, places in pairs(self.placequeue) do
+      if love.timer.getTime() - places.timestamp > lagdelay then
+          self.world:tile(places.x, places.y, places.z, loex.tiles.air.id)
+          self.placequeue[key] = nil
+      end
+  end
+
+  for key, breaks in pairs(self.breakqueue) do
+      if love.timer.getTime() - breaks.timestamp > lagdelay then
+          self.world:tile(breaks.x, breaks.y, breaks.z, breaks.prev)
+          self.breakqueue[key] = nil
+      end
+  end
+
+  -- count how many threads are being used right now
+  for _, thread in ipairs(threadpool) do
+    local err = thread:getError()
+    assert(not err, err)
+  end
+
+  -- listen for finished meshes on the thread channels
+  while self.remeshchannel:peek() do
+    local data = self.remeshchannel:pop()
+    if not data then break end
+    local c = self.world:chunk(data.cx, data.cy, data.cz)
+    if c.model then c.model.mesh:release() end
+    c.model = nil
+    c.inremesh = false
+    if data.count > 0 then
+      c.model = g3d.newModel(data.count, texturepack)
+      c.model.mesh:setVertices(data.data)
+      c.model:setTranslation(data.cx * size, data.cy * size, data.cz * size)
     end
-end
+    threadusage = threadusage - 1 -- free up thread
+  end
 
-function GameWorld:onChunkAdded(chunk)
-    local x, y, z = chunk.cx, chunk.cy, chunk.cz
-    self.chunkCreationsThisFrame = self.chunkCreationsThisFrame + 1
+  -- remesh the chunks in the queue
+  local remeshesquota = #self.remeshqueue
+  local remeshes = 0
+  local offi = 0
 
-    self:requestRemesh(chunk)
+  while threadusage < #threadpool and #self.remeshqueue > 0 and remeshes < remeshesquota do
+    local c = self.remeshqueue[1 + offi]
+    remeshes = remeshes + 1
 
-    -- this chunk was just created, so update all the chunks around it
-    self:requestRemesh(self:getChunk(x+1,y,z))
-    self:requestRemesh(self:getChunk(x-1,y,z))
-    self:requestRemesh(self:getChunk(x,y+1,z))
-    self:requestRemesh(self:getChunk(x,y-1,z))
-    self:requestRemesh(self:getChunk(x,y,z+1))
-    self:requestRemesh(self:getChunk(x,y,z-1))
-end
-
-function GameWorld:onEntityAdded(entity)
-    print(entity.type .. " ".. entity.id .. " added")
-end
-
-function GameWorld:onEntityRemoved(entity)
-    print(entity.type .. " ".. entity.id .. " removed")
-end
-
-
-local netTimer = 0
-function GameWorld:onUpdated(dt)
-
-    -- collect mouse inputs
-    wasLeftDown, wasRightDown = leftDown, rightDown
-    leftDown, rightDown = love.mouse.isDown(1), love.mouse.isDown(2)
-    leftClick, rightClick = leftDown and not wasLeftDown, rightDown and not wasRightDown
-
-    self.updatedThisFrame = true
-
-    for key, places in pairs(self.placeQueue) do
-        if love.timer.getTime() - places.timeStamp > 0.5 then
-            self:setBlockAndRemesh(places.x, places.y, places.z, 0)
-            self.placeQueue[key] = nil
-        end
-    end
-
-    for key, breaks in pairs(self.breakQueue) do
-        if love.timer.getTime() - breaks.timeStamp > 0.5 then
-            self:setBlockAndRemesh(breaks.x, breaks.y, breaks.z, breaks.prev)
-            self.breakQueue[key] = nil
-        end
-    end
-
-    -- -- generate a "bubble" of loaded chunks around the camera
-    -- local bubbleWidth = renderDistance
-    -- local bubbleHeight = math.floor(renderDistance * 0.75)
-    -- local creationLimit = 1
-    -- self.chunkCreationsThisFrame = 0
-    -- for r=0, bubbleWidth do
-    --     for a=0, math.pi*2, math.pi*2/(8*r) do
-    --         local h = math.floor(math.cos(r*(math.pi/2)/bubbleWidth)*bubbleHeight + 0.5)
-    --         for y=0, h do
-    --             local x, z = math.floor(math.cos(a)*r + 0.5), math.floor(math.sin(a)*r + 0.5)
-    --             if y ~= 0 then
-    --                 updateChunk(self, x, -y, z)
-    --             end
-    --             updateChunk(self, x, y, z)
-    --             if self.chunkCreationsThisFrame >= creationLimit then break end
-    --         end
-    --     end
-    -- end
-
-    -- count how many threads are being used right now
     for _, thread in ipairs(threadpool) do
-        local err = thread:getError()
-        assert(not err, err)
-    end
-
-    -- listen for finished meshes on the thread channels
-    for channel, chunk in pairs(threadchannels) do
-        local data = love.thread.getChannel(channel):pop()
-        if data then
-            threadchannels[channel] = nil
-            if chunk.model then chunk.model.mesh:release() end
-            chunk.model = nil
-            chunk.inRemeshQueue = false
-            if data.count > 0 then
-                chunk.model = g3d.newModel(data.count, texturepack)
-                chunk.model.mesh:setVertices(data.data)
-                chunk.model:setTranslation(chunk.x, chunk.y, chunk.z)
-            end
-            threadusage = threadusage - 1 -- free up thread
+      if not thread:isRunning() then
+        -- send over the neighboring chunks to the thread
+        -- so that voxels on the edges can face themselves properly
+        local n1, n2, n3, n4, n5, n6 = world:neighbourhood(c.x, c.y, c.z)
+        if not (n1 and n2 and n3 and n4 and n5 and n6) then
+          offi = offi + 1
+          break
         end
+
+        n1, n2, n3, n4, n5, n6 = n1.data, n2.data, n3.data, n4.data, n5.data, n6.data
+        thread:start(self.remeshchannel, c.x, c.y, c.z, c.data, size, loex.tiles.id, n1, n2, n3, n4, n5, n6)
+        table.remove(self.remeshqueue, 1 + offi)
+        threadusage = threadusage + 1 -- use up thread
+        break
+      end
     end
+  end
 
-    -- remesh the chunks in the queue
-    --[[NOTE: if this happens multiple times in a frame, weird things can happen? idk why 
-        NOTE(DMClVG): This was because chunks inside this loop that couldn't find a thread (due to the fact that threadusage was only recalculated every frame, and not on every started thread),
-        weren't reinserted after being removed from the queue and were effectively lost ]]
-    local remeshesThisFrame = #self.remeshQueue
-    local remeshes = 0
-    while threadusage < #threadpool and #self.remeshQueue > 0 and remeshes < remeshesThisFrame do
-        local chunk = self.remeshQueue[1]
-        remeshes = remeshes + 1
+  local keyboard = love.keyboard
+  local speed, jumpforce, gravity = 5, 12, 42
+  local dirx, diry, dirz = g3d.camera.getLookVector()
+  local move = { x = 0, y = 0, z = 0 }
+  local p = self.player
 
-        if chunk and not chunk.dead then
-            for _, thread in ipairs(threadpool) do
-                if not thread:isRunning() then
-                    table.remove(self.remeshQueue, 1)
-                                        
-                    -- send over the neighboring chunks to the thread
-                    -- so that voxels on the edges can face themselves properly
-                    local x, y, z = chunk.cx, chunk.cy, chunk.cz
-                    local neighbor, n1, n2, n3, n4, n5, n6
-                    neighbor = self:getChunk(x+1,y,z)
-                    if neighbor then n1 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
-                    neighbor = self:getChunk(x-1,y,z)
-                    if neighbor then n2 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
-                    neighbor = self:getChunk(x,y+1,z)
-                    if neighbor then n3 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
-                    neighbor = self:getChunk(x,y-1,z)
-                    if neighbor then n4 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
-                    neighbor = self:getChunk(x,y,z+1)
-                    if neighbor then n5 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
-                    neighbor = self:getChunk(x,y,z-1)
-                    if neighbor then n6 = neighbor.data else table.insert(self.remeshQueue, chunk) break end
+  if keyboard.isDown("w") then
+    move.x = dirx
+    move.y = diry
+  elseif keyboard.isDown("s") then
+    move.x = -dirx
+    move.y = -diry
+  end
 
-                    thread:start(chunk.hash, chunk.data, chunk.size, common.Tiles.tiles, common.Tiles.tids, n1, n2, n3, n4, n5, n6)
-                    threadchannels[chunk.hash] = chunk
-                    threadusage = threadusage + 1 -- use up thread
-                    break
-                end
-            end
-        else
-            table.remove(self.remeshQueue, 1)
-        end
-    end
+  if keyboard.isDown("a") then
+    move.x = -diry
+    move.y = dirx
+  elseif keyboard.isDown("d") then
+    move.x = diry
+    move.y = -dirx
+  end
 
-    -- left click to destroy blocks
-    -- casts a ray from the camera five blocks in the look vector
-    -- finds the first intersecting block
-    local vx, vy, vz = g3d.camera.getLookVector()
-    local x, y, z = g3d.camera.position[1], g3d.camera.position[2], g3d.camera.position[3]
+  p.vx, p.vy, _ = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(move.x, move.y, move.z))
+  p.vz = p.vz - gravity * dt
+
+  local onground = moveandcollide(self.world, p, playerbox, dt)
+
+  g3d.camera.position[1] = p.x
+  g3d.camera.position[2] = p.y
+  g3d.camera.position[3] = p.z + 0.7
+  g3d.camera.lookInDirection()
+
+  if onground and keyboard.isDown("space") then
+    p.vz = p.vz + jumpforce
+  end
+
+  local syncinterval = 1 / 20
+  self.synctimer = self.synctimer + dt
+  if self.synctimer >= syncinterval then
+    self.master:send(packets.move(p.x, p.y, p.z), CHANNEL_UPDATES, "unreliable")
+    self.synctimer = 0
+  end
+
+  -- casts a ray from the camera five blocks in the look vector
+  -- finds the first intersecting block
+  cursor = nil
+  do
+    local dx, dy, dz = g3d.camera.getLookVector()
+    local ox, oy, oz = g3d.camera.position[1], g3d.camera.position[2], g3d.camera.position[3]
     local step = 0.1
-    local floor = math.floor
-    local buildx, buildy, buildz
-    blockCursorVisible = false
-    for i=step, 5, step do
-        local bx, by, bz = floor(x + vx*i), floor(y + vy*i), floor(z + vz*i)
-        local chunk = self:getChunkFromWorld(bx, by, bz)
-        if chunk then
-            local lx, ly, lz = bx%size, by%size, bz%size
-            local tile = chunk:getBlock(lx,ly,lz)
-            if tile ~= 0 then
-                blockCursor:setTranslation(bx, by, bz)
-                blockCursorVisible = true
-
-                -- store the last position the ray was at
-                -- as the position for building a block
-                local li = i - step
-                buildx, buildy, buildz = floor(x + vx*li), floor(y + vy*li), floor(z + vz*li)
-
-                if leftClick then
-                    self.breakQueue[("%d/%d/%d"):format(bx, by, bz)] = { x=bx,y=by,z=bz,timeStamp=love.timer.getTime(), prev=tile }
-                    net.master:send(packets.Break(bx, by, bz), CHANNEL_EVENTS, "reliable")
-                    self:setBlockAndRemesh(bx, by, bz, 0, true)
-                end
-
-                break
-            end
-        end
+    for i = step, 5, step do
+      local x, y, z = floor(ox + dx * i), floor(oy + dy * i), floor(oz + dz * i)
+      local tile = world:tile(x, y, z)
+      if tile > 0 then
+        local li = i - step
+        cursor = {}
+        cursor.placex, cursor.placey, cursor.placez = floor(ox + dx * li), floor(oy + dy * li), floor(oz + dz * li)
+        cursor.x, cursor.y, cursor.z = x, y, z
+        break
+      end
     end
+  end
 
-    local p = self.player
-    local pbox = p:getBox()
-    local placedBlock = common.Tiles.bricks.id
+  local placetile = loex.tiles.bricks.id
 
-    -- right click to place blocks
-    if rightClick and buildx then
-        local cube = {x=buildx+0.5, y=buildy+0.5, z=buildz+0.5, w=0.5, h=0.5, d=0.5}
-        local collided = false
-        for _, e in pairs(self:query(loex.entities.Player)) do
-            if loex.Utils.intersectBoxAndBox(cube, e:getBox()) then
-                collided = true
-                break
-            end
-        end
+  if mouse.leftclick and cursor then
+    local x, y, z = cursor.x, cursor.y, cursor.z
+    self.breakqueue[("%d/%d/%d"):format(x, y, z)] = {
+      x = x,
+      y = y,
+      z = z,
+      timestamp = love.timer.getTime(),
+      prev = self.world:tile(x, y, z)
+    }
+    self.master:send(packets.breaktile(x, y, z), CHANNEL_EVENTS, "reliable")
+    self.world:tile(x, y, z, loex.tiles.air.id)
+  end
 
-        if not collided then
-            local chunk = self:getChunkFromWorld(buildx, buildy, buildz)
-            if chunk then
-                self.placeQueue[("%d/%d/%d"):format(buildx, buildy, buildz)] = { x=buildx,y=buildy,z=buildz,timeStamp=love.timer.getTime(),placed=placedBlock }
-                net.master:send(packets.Place(buildx, buildy, buildz, placedBlock), CHANNEL_EVENTS, "reliable")
-                self:setBlockAndRemesh(buildx, buildy, buildz, placedBlock)
-            end
-        end
+  -- right click to place blocks
+  if mouse.rightclick and cursor then
+    local x, y, z = cursor.placex, cursor.placey, cursor.placez
+    local cube = { x = x + .5, y = y + .5, z = z + .5, w = .5, h = .5, d = .5 }
+    local translatedplayerbox = lume.clone(playerbox)
+    translatedplayerbox.x = translatedplayerbox.x + p.x
+    translatedplayerbox.y = translatedplayerbox.y + p.y
+    translatedplayerbox.z = translatedplayerbox.z + p.z
+    if not loex.utils.intersectbb(cube, translatedplayerbox) then
+      self.placequeue[("%d/%d/%d"):format(x, y, z)] = {
+        x = x,
+        y = y,
+        z = z,
+        timestamp = love.timer.getTime(),
+        t = placetile
+      }
+      self.master:send(packets.place(x, y, z, placetile), CHANNEL_EVENTS, "reliable")
+      self.world:tile(x, y, z, placetile)
     end
+  end
 
-
-    local speed, jumpForce = 5, 12
-    local dirx, diry, dirz = g3d.camera.getLookVector()
-    local move = {x=0,y=0,z=0}
-
-    if love.keyboard.isDown("w") then
-        move.x = dirx
-        move.y = diry
-    elseif love.keyboard.isDown("s") then
-        move.x = -dirx
-        move.y = -diry
-    end
-    
-    if love.keyboard.isDown("a") then
-        move.x = -diry
-        move.y = dirx
-    elseif love.keyboard.isDown("d") then
-        move.x = diry
-        move.y = -dirx
-    end
-    
-
-    local mvx, mvy, _ = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(move.x, move.y, move.z))
-    p.vx = mvx
-    p.vy = mvy
-    p.vz = p.vz - Physics.WORLD_G * dt
-
-    local nv, touchedGround = advanceBoxInWorld(self, pbox, {x=p.vx,y=p.vy,z=p.vz}, dt)
-    p.vx = nv.x
-    p.vy = nv.y
-    p.vz = nv.z
-    p.x = pbox.x
-    p.y = pbox.y
-    p.z = pbox.z
-
-    g3d.camera.position[1] = p.x
-    g3d.camera.position[2] = p.y
-    g3d.camera.position[3] = p.z + 0.7
-    g3d.camera.lookInDirection()
-
-    if touchedGround and love.keyboard.isDown("space") then
-        p.vz = p.vz + jumpForce
-    end
-
-    local netInterval = 1/20
-    if netTimer >= netInterval then
-        if p.syncX == nil or p.syncX ~= p.x or p.syncY ~= p.y or p.syncZ ~= p.z then
-            p.syncX = p.x
-            p.syncY = p.y
-            p.syncZ = p.z
-            net.master:send(packets.Move(p.x, p.y, p.z), CHANNEL_UPDATES, "unreliable")
-        end
-        netTimer = 0
-    end
-    netTimer = netTimer + dt
 end
 
-function GameWorld:mousemoved(x, y, dx, dy)
-    g3d.camera.firstPersonLook(dx, dy)
+function gameworld:draw()
+  lg.clear(lume.color "#4488ff")
+
+  lg.setColor(1, 1, 1)
+  for _, chunk in pairs(self.world.chunks) do
+    if chunk.model then
+      chunk.model:draw()
+    end
+  end
+
+  lg.setMeshCullMode("none")
+  if cursor then
+    lg.setColor(0, 0, 0)
+    lg.setWireframe(true)
+    cursormodel:setTranslation(cursor.x, cursor.y, cursor.z)
+    cursormodel:draw()
+    lg.setWireframe(false)
+  end
+
+  local camera = g3d.camera.position
+  lg.setColor(1, 1, 1)
+  for _, entity in pairs(self.world.entities) do
+    if entity ~= self.player then
+      playerobj:setTranslation(entity.x, entity.y, entity.z - 0.9)
+      playerobj:setRotation(0, 0, math.atan2(entity.y - camera[2], entity.x - camera[1]))
+      playerobj:setScale(0.1, 1, 0.6)
+      playerobj:draw()
+    end
+  end
+
+  lg.setMeshCullMode("back")
 end
 
-function GameWorld:draw()
-    lg.clear(lume.color "#4488ff")
-
-    lg.setColor(1,1,1)
-    for _, chunk in pairs(self.chunks) do
-        chunk:draw()
-
-        if self.updatedThisFrame then
-            chunk.frames = chunk.frames + 1
-            -- if chunk.frames > 100 then chunk:destroy() end
-        end
-    end
-
-    self.updatedThisFrame = false
-
-    lg.setMeshCullMode("none")
-    if blockCursorVisible then
-        lg.setColor(0,0,0)
-        lg.setWireframe(true)
-        blockCursor:draw()
-        lg.setWireframe(false)
-    end
-    
-    lg.setColor(1,1,1)
-    for _, entity in pairs(self.entities) do
-        entity:draw()
-    end
-    
-    lg.setMeshCullMode("back")
+function gameworld:mousemoved(x, y, dx, dy)
+  g3d.camera.firstPersonLook(dx, dy)
 end
 
-function GameWorld:setBlockAndRemesh(x, y, z, t, neighboursFirst)
-    local chunk = self:getChunkFromWorld(x, y, z)
-    assert(chunk)
+function gameworld:ontilemodified(x, y, z, _)
+  local chunk = self.world:chunk(floor(x/size), floor(y / size), floor(z / size))
+  assert(chunk)
 
-    local size = chunk.size
-    local lx, ly, lz = x%size, y%size, z%size
-    local cx, cy, cz = chunk.cx, chunk.cy, chunk.cz
-    chunk:setBlock(lx, ly, lz, t)
+  local tx, ty, tz = x % size, y % size, z % size
+  local cx, cy, cz = chunk.x, chunk.y, chunk.z
+  local world = self.world
 
-    if neighboursFirst then
-        self:requestRemesh(chunk, true)
-    end
-    if lx >= size-1 then self:requestRemesh(self:getChunk(cx+1,cy,cz), true) end
-    if lx <= 0      then self:requestRemesh(self:getChunk(cx-1,cy,cz), true) end
-    if ly >= size-1 then self:requestRemesh(self:getChunk(cx,cy+1,cz), true) end
-    if ly <= 0      then self:requestRemesh(self:getChunk(cx,cy-1,cz), true) end
-    if lz >= size-1 then self:requestRemesh(self:getChunk(cx,cy,cz+1), true) end
-    if lz <= 0      then self:requestRemesh(self:getChunk(cx,cy,cz-1), true) end
-    if not neighboursFirst then
-        self:requestRemesh(chunk, true)
-    end
+  if tx >= size - 1 then self:requestremesh(world:chunk(cx + 1, cy, cz), true) end
+  if tx <= 0 then self:requestremesh(world:chunk(cx - 1, cy, cz), true) end
+  if ty >= size - 1 then self:requestremesh(world:chunk(cx, cy + 1, cz), true) end
+  if ty <= 0 then self:requestremesh(world:chunk(cx, cy - 1, cz), true) end
+  if tz >= size - 1 then self:requestremesh(world:chunk(cx, cy, cz + 1), true) end
+  if tz <= 0 then self:requestremesh(world:chunk(cx, cy, cz - 1), true) end
+
+  self:requestremesh(chunk, true)
 end
 
-function GameWorld:requestRemesh(chunk, first)
-    -- don't add a nil chunk or a chunk that's already in the queue
-    if not chunk or chunk.inRemeshQueue then return end
-    local x, y, z = chunk.cx, chunk.cy, chunk.cz
+function gameworld:requestremesh(c, priority)
+  -- don't add a nil chunk or a chunk that's already in the queue
+  local world = self.world
+  if not c or c.inremesh then return end
 
-    -- check if has neighboring chunks
-    if not self:getChunk(x+1,y,z) then return end
-    if not self:getChunk(x-1,y,z) then return end
-    if not self:getChunk(x,y+1,z) then return end
-    if not self:getChunk(x,y-1,z) then return end
-    if not self:getChunk(x,y,z+1) then return end
-    if not self:getChunk(x,y,z-1) then return end
-
-    chunk.inRemeshQueue = true
-    if first then
-        table.insert(self.remeshQueue, 1, chunk)
-    else
-        table.insert(self.remeshQueue, chunk)
-    end
+  c.inremesh = true
+  if priority then
+    table.insert(self.remeshqueue, 1, c)
+  else
+    table.insert(self.remeshqueue, c)
+  end
 end
+
+return gameworld
