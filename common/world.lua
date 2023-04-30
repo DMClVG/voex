@@ -17,6 +17,8 @@ function world.new()
     new.ontilemodified = loex.signal.new()
     new.onentityadded = loex.signal.new()
     new.onentityremoved = loex.signal.new()
+    new.onchunkadded = loex.signal.new()
+    new.onchunkremoved = loex.signal.new()
 
     setmetatable(new, world)
 
@@ -55,6 +57,7 @@ function world:chunk(x, y, z, c)
     if c then
         assert(not self.chunks[hash])
         self.chunks[hash] = c
+        self.onchunkadded:emit(c)
     else
         return self.chunks[hash]
     end
@@ -62,8 +65,11 @@ end
 
 function world:removechunk(x, y, z)
     local hash = chunkhash(x, y, z)
-    assert(self.chunks[hash])
+    local c = self.chunks[hash]
+    assert(c)
     self.chunks[hash] = nil
+    self.onchunkremoved:emit(c)
+    return c
 end
 
 function world:tile(x, y, z, t)
