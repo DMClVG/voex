@@ -75,7 +75,7 @@ end
 
 function world:tile(x, y, z, t)
     if t then
-        local chunk = self:getChunk(floor(x / size), floor(y / size), floor(z / size))
+        local chunk = self:chunk(floor(x / size), floor(y / size), floor(z / size))
         assert(chunk)
 
         local old = chunk:set(x % size, y % size, z % size, t)
@@ -83,7 +83,7 @@ function world:tile(x, y, z, t)
             self.ontilemodified:emit(x, y, z, t)
         end
     else
-        local chunk = self:getChunk(floor(x / size), floor(y / size), floor(z / size))
+        local chunk = self:chunk(floor(x / size), floor(y / size), floor(z / size))
         if chunk then return chunk:get(x % size, y % size, z % size) end
         return -1
     end
