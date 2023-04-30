@@ -6,7 +6,7 @@ local world = {}
 world.__index = world
 
 local function chunkhash(x, y, z)
-    return table.concat({ x, y, z }, ",")
+    return table.concat({ x, y, z }, "/")
 end
 
 function world.new()
