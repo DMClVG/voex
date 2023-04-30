@@ -41,8 +41,9 @@ function empty_chunk:destroy()
 
 end
 
-function chunk.new()
+function chunk.new(x, y, z)
     local new = {}
+    new.x, new.y, new.z = x, y, z
     new.entities = {}
     new = setmetatable(new, { __index = empty_chunk })
     return new
