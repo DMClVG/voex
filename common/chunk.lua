@@ -23,8 +23,8 @@ function empty_chunk:dump(uncompressed)
     return ""
 end
 
-function empty_chunk:init()
-    self.data = love.data.newByteData(chunk.size ^ 3)
+function empty_chunk:init(data)
+    self.data = data or love.data.newByteData(chunk.size ^ 3)
     self.ptr = ffi.cast("uint8_t *", self.data:getFFIPointer())
     setmetatable(self, { __index = chunk })
 end
