@@ -21,13 +21,19 @@ function socket.new(enet)
 end
 
 function socket.host(port, max_peers)
-    local enet = enet.host_create(("localhost:%d"):format(port), max_peers, CHANNEL_COUNT)
+    local enet, err = enet.host_create(("localhost:%d"):format(port), max_peers, CHANNEL_COUNT)
+    if not enet then
+        error(err)
+    end
     enet:compress_with_range_coder()
     return socket.new(enet)
 end
 
 function socket.connect(address)
-    local enet = enet.host_create(nil, 1)
+    local enet, err = enet.host_create(nil, 1)
+    if not enet then
+      error(err)
+    end
     enet:compress_with_range_coder()
     enet:connect(address, CHANNEL_COUNT)
     return socket.new(enet)
