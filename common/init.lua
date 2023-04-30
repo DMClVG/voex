@@ -1,7 +1,7 @@
 loex = {
-    _VERSION = "dev",
-    _URL     = "https://github.com/DMClVG/voex",
-    _LICENSE = [[
+  _VERSION = "dev",
+  _URL = "https://github.com/DMClVG/voex",
+  _LICENSE = [[
         MIT License
 
         Copyright (c) 2022 DMClVG
@@ -24,8 +24,8 @@ loex = {
         OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
         SOFTWARE.
     ]],
-    path     = ...,
-    lpath    = (...) .. "."
+  path = ...,
+  lpath = (...) .. ".",
 }
 
 assert(love, "this package needs löve!")

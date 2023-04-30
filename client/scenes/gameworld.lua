@@ -5,9 +5,9 @@ local threadpool = {}
 local threadusage = 0
 -- load up some threads so that chunk meshing won't block the main thread
 for i = 1, 8 do
-  threadpool[i] = love.thread.newThread "scenes/chunkremesh.lua"
+  threadpool[i] = love.thread.newThread("scenes/chunkremesh.lua")
 end
-local texturepack = lg.newImage "assets/texturepack.png"
+local texturepack = lg.newImage("assets/texturepack.png")
 
 local mouse = {} -- mouse state
 local playerbox = {
@@ -16,7 +16,7 @@ local playerbox = {
   z = 0,
   w = 0.3,
   d = 0.3,
-  h = 0.6
+  h = 0.6,
 }
 
 local playerobj = g3d.newModel("assets/player.obj", "assets/saul.png")
@@ -28,20 +28,44 @@ do
   local a = -0.005
   local b = 1.005
   cursormodel = g3d.newModel {
-    { a, a, a }, { b, a, a }, { b, a, a },
-    { a, a, a }, { a, a, b }, { a, a, b },
-    { b, a, b }, { a, a, b }, { a, a, b },
-    { b, a, b }, { b, a, a }, { b, a, a },
+    { a, a, a },
+    { b, a, a },
+    { b, a, a },
+    { a, a, a },
+    { a, a, b },
+    { a, a, b },
+    { b, a, b },
+    { a, a, b },
+    { a, a, b },
+    { b, a, b },
+    { b, a, a },
+    { b, a, a },
 
-    { a, b, a }, { b, b, a }, { b, b, a },
-    { a, b, a }, { a, b, b }, { a, b, b },
-    { b, b, b }, { a, b, b }, { a, b, b },
-    { b, b, b }, { b, b, a }, { b, b, a },
+    { a, b, a },
+    { b, b, a },
+    { b, b, a },
+    { a, b, a },
+    { a, b, b },
+    { a, b, b },
+    { b, b, b },
+    { a, b, b },
+    { a, b, b },
+    { b, b, b },
+    { b, b, a },
+    { b, b, a },
 
-    { a, a, a }, { a, b, a }, { a, b, a },
-    { b, a, a }, { b, b, a }, { b, b, a },
-    { a, a, b }, { a, b, b }, { a, b, b },
-    { b, a, b }, { b, b, b }, { b, b, b },
+    { a, a, a },
+    { a, b, a },
+    { a, b, a },
+    { b, a, a },
+    { b, b, a },
+    { b, b, a },
+    { a, a, b },
+    { a, b, b },
+    { a, b, b },
+    { b, a, b },
+    { b, b, b },
+    { b, b, b },
   }
 end
 
@@ -76,16 +100,11 @@ function gameworld:onchunkadded(chunk)
   self:requestremesh(chunk)
 end
 
-function gameworld:onchunkremoved(chunk)
-end
+function gameworld:onchunkremoved(chunk) end
 
-function gameworld:onentityadded(entity)
-  print(entity.id .. " added")
-end
+function gameworld:onentityadded(entity) print(entity.id .. " added") end
 
-function gameworld:onentityremoved(entity)
-  print(entity.id .. " removed")
-end
+function gameworld:onentityremoved(entity) print(entity.id .. " removed") end
 
 function gameworld:update(dt)
   local world = self.world
@@ -97,17 +116,17 @@ function gameworld:update(dt)
   local lagdelay = 0.5
   -- handle place and break timeouts
   for key, places in pairs(self.placequeue) do
-      if love.timer.getTime() - places.timestamp > lagdelay then
-          self.world:tile(places.x, places.y, places.z, loex.tiles.air.id)
-          self.placequeue[key] = nil
-      end
+    if love.timer.getTime() - places.timestamp > lagdelay then
+      self.world:tile(places.x, places.y, places.z, loex.tiles.air.id)
+      self.placequeue[key] = nil
+    end
   end
 
   for key, breaks in pairs(self.breakqueue) do
-      if love.timer.getTime() - breaks.timestamp > lagdelay then
-          self.world:tile(breaks.x, breaks.y, breaks.z, breaks.prev)
-          self.breakqueue[key] = nil
-      end
+    if love.timer.getTime() - breaks.timestamp > lagdelay then
+      self.world:tile(breaks.x, breaks.y, breaks.z, breaks.prev)
+      self.breakqueue[key] = nil
+    end
   end
 
   -- count how many threads are being used right now
@@ -192,9 +211,7 @@ function gameworld:update(dt)
   g3d.camera.position[3] = p.z + 0.7
   g3d.camera.lookInDirection()
 
-  if onground and keyboard.isDown("space") then
-    p.vz = p.vz + jumpforce
-  end
+  if onground and keyboard.isDown("space") then p.vz = p.vz + jumpforce end
 
   local syncinterval = 1 / 20
   self.synctimer = self.synctimer + dt
@@ -232,7 +249,7 @@ function gameworld:update(dt)
       y = y,
       z = z,
       timestamp = love.timer.getTime(),
-      prev = self.world:tile(x, y, z)
+      prev = self.world:tile(x, y, z),
     }
     self.master:send(packets.breaktile(x, y, z), CHANNEL_EVENTS, "reliable")
     self.world:tile(x, y, z, loex.tiles.air.id)
@@ -241,7 +258,7 @@ function gameworld:update(dt)
   -- right click to place blocks
   if mouse.rightclick and cursor then
     local x, y, z = cursor.placex, cursor.placey, cursor.placez
-    local cube = { x = x + .5, y = y + .5, z = z + .5, w = .5, h = .5, d = .5 }
+    local cube = { x = x + 0.5, y = y + 0.5, z = z + 0.5, w = 0.5, h = 0.5, d = 0.5 }
     local translatedplayerbox = lume.clone(playerbox)
     translatedplayerbox.x = translatedplayerbox.x + p.x
     translatedplayerbox.y = translatedplayerbox.y + p.y
@@ -252,23 +269,20 @@ function gameworld:update(dt)
         y = y,
         z = z,
         timestamp = love.timer.getTime(),
-        t = placetile
+        t = placetile,
       }
       self.master:send(packets.place(x, y, z, placetile), CHANNEL_EVENTS, "reliable")
       self.world:tile(x, y, z, placetile)
     end
   end
-
 end
 
 function gameworld:draw()
-  lg.clear(lume.color "#4488ff")
+  lg.clear(lume.color("#4488ff"))
 
   lg.setColor(1, 1, 1)
   for _, chunk in pairs(self.world.chunks) do
-    if chunk.model then
-      chunk.model:draw()
-    end
+    if chunk.model then chunk.model:draw() end
   end
 
   lg.setMeshCullMode("none")
@@ -294,12 +308,10 @@ function gameworld:draw()
   lg.setMeshCullMode("back")
 end
 
-function gameworld:mousemoved(x, y, dx, dy)
-  g3d.camera.firstPersonLook(dx, dy)
-end
+function gameworld:mousemoved(x, y, dx, dy) g3d.camera.firstPersonLook(dx, dy) end
 
 function gameworld:ontilemodified(x, y, z, _)
-  local chunk = self.world:chunk(floor(x/size), floor(y / size), floor(z / size))
+  local chunk = self.world:chunk(floor(x / size), floor(y / size), floor(z / size))
   assert(chunk)
 
   local tx, ty, tz = x % size, y % size, z % size
