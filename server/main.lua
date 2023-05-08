@@ -61,13 +61,13 @@ function love.load(args)
   socket.onreceive:catch(onreceive)
 
   world = loex.world.new()
-  world.onentityadded:catch(world_onentityadded)
+  world.onentityinserted:catch(world_onentityinserted)
   world.onentityremoved:catch(world_onentityremoved)
 
   for i = -2, 2 do
     for j = -2, 2 do
       for k = -2, 2 do
-        world:chunk(i, j, k, genchunk(loex.chunk.new(i, j, k)))
+        world:insertchunk(genchunk(loex.chunk.new(i, j, k)))
       end
     end
   end
@@ -78,7 +78,7 @@ function love.load(args)
   -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
 end
 
-function world_onentityadded(e)
+function world_onentityinserted(e)
   print(e.id .. " added")
   local packet = packets.entityadd(e.id, e.x, e.y, e.z)
   for _, e in pairs(world.entities) do

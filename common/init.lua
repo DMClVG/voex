@@ -32,6 +32,7 @@ assert(love, "this package needs löve!")
 
 lume = require(loex.lpath .. "lib.lume")
 
+loex.hash = require(loex.lpath .. "hash")
 loex.signal = require(loex.lpath .. "signal")
 loex.utils = require(loex.lpath .. "utils")
 loex.tiles = require(loex.lpath .. "tiles")

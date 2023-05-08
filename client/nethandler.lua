@@ -36,7 +36,7 @@ end
 function nethandler.entitymove(g, d)
   assert(false)
   local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
-  local entity = g.world:get(d.id)
+  local entity = g.world:entity(d.id)
   assert(entity)
   entity.x = x
   entity.y = y
@@ -52,12 +52,12 @@ function nethandler.entityadd(g, d)
 end
 
 function nethandler.entityremove(g, d)
-  local entity = g.world:get(d.id)
+  local entity = g.world:entity(d.id)
   entity.dead = true
 end
 
 function nethandler.entityremoteset(g, d)
-  local entity = g.world:get(d.id)
+  local entity = g.world:entity(d.id)
   if entity.id == g.player.id and d.property:match("[xyz]") then return end -- TODO: position correction
   entity[d.property] = d.value
 end
@@ -68,7 +68,7 @@ function nethandler.chunkadd(g, d)
   local cx, cy, cz = tonumber(d.cx), tonumber(d.cy), tonumber(d.cz)
   local c = loex.chunk.new(cx, cy, cz)
   c:init(d.bin)
-  g.world:chunk(cx, cy, cz, c)
+  g.world:insertchunk(c)
 end
 
 function nethandler.chunkremove(g, d)
