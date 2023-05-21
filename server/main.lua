@@ -43,6 +43,7 @@ function love.load(args)
   world = loex.world.new()
   world.onentityinserted:catch(world_onentityinserted)
   world.onentityremoved:catch(world_onentityremoved)
+  world.ontilemodified:catch(world_ontilemodified)
 
   genstate = gen.state.new(overworld.layers, 43242)
 end
@@ -54,6 +55,19 @@ function world_onentityremoved(e)
 
   for _, p in ipairs(world:query("player")) do
     if p.view:entity(e.id) then p.view:remove(e.id) end
+  end
+end
+
+function world_ontilemodified(x, y, z, t)
+  local packet
+  if t == loex.tiles.air.id then
+    packet = packets.broken(x, y, z)
+  else
+    packet = packets.placed(x, y, z, t)
+  end
+
+  for _, p in ipairs(world:query("player")) do
+    if p.view:tile(x, y, z) >= 0 then p.master:send(packet) end
   end
 end
 
@@ -79,12 +93,10 @@ function handle_player_packet(player, packet)
     ["place"] = function(p, d)
       local x, y, z, t = tonumber(d.x), tonumber(d.y), tonumber(d.z), tonumber(d.t)
       world:tile(x, y, z, t)
-      broadcast(packets.placed(x, y, z, t))
     end,
     ["breaktile"] = function(p, d)
       local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
       world:tile(x, y, z, tiles.air.id)
-      broadcast(packets.broken(x, y, z))
     end,
   }
   handles[packet.type](player, packet)
