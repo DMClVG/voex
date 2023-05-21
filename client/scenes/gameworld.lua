@@ -1,6 +1,7 @@
 local gameworld = {}
 local size = loex.chunk.size
 local floor = math.floor
+local min = math.min
 local threadpool = {}
 local threadusage = 0
 -- load up some threads so that chunk meshing won't block the main thread
@@ -224,16 +225,45 @@ function gameworld:update(dt)
   cursor = nil
   do
     local dx, dy, dz = g3d.camera.getLookVector()
-    local ox, oy, oz = g3d.camera.position[1], g3d.camera.position[2], g3d.camera.position[3]
-    local step = 0.1
-    for i = step, 5, step do
-      local x, y, z = floor(ox + dx * i), floor(oy + dy * i), floor(oz + dz * i)
-      local tile = world:tile(x, y, z)
+    local x, y, z = g3d.camera.position[1], g3d.camera.position[2], g3d.camera.position[3]
+    local ox, oy, oz = x, y, z
+
+    local inf = 99999999
+    local clipdistance = 10
+    local epsilon = 0.00001
+
+    while true do
+      local maxx, maxy, maxz = inf, inf, inf
+      if dx > 0 then
+        maxx = (floor(x) + 1 - x) / dx
+      elseif dx < 0 then
+        maxx = (floor(x) - x) / dx
+      end
+      if dy > 0 then
+        maxy = (floor(y) + 1 - y) / dy
+      elseif dy < 0 then
+        maxy = (floor(y) - y) / dy
+      end
+      if dz > 0 then
+        maxz = (floor(z) + 1 - z) / dz
+      elseif dz < 0 then
+        maxz = (floor(z) - z) / dz
+      end
+
+      local step = min(maxx, min(maxy, maxz))
+      x = x + dx * step * (1 + epsilon)
+      y = y + dy * step * (1 + epsilon)
+      z = z + dz * step * (1 + epsilon)
+
+      if loex.utils.distance3d(ox, oy, oz, x, y, z, true) > clipdistance * clipdistance or step == 0 then break end
+
+      local tx, ty, tz = floor(x), floor(y), floor(z)
+      local tile = world:tile(tx, ty, tz)
+      if tile == -1 then break end
       if tile > 0 then
-        local li = i - step
         cursor = {}
-        cursor.placex, cursor.placey, cursor.placez = floor(ox + dx * li), floor(oy + dy * li), floor(oz + dz * li)
-        cursor.x, cursor.y, cursor.z = x, y, z
+        cursor.placex, cursor.placey, cursor.placez = floor(x - dx * step), floor(y - dy * step), floor(z - dz * step)
+        cursor.x, cursor.y, cursor.z = tx, ty, tz
         break
       end
     end
