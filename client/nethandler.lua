@@ -51,9 +51,7 @@ function nethandler.entityadd(g, d)
   g.world:insert(entity)
 end
 
-function nethandler.entityremove(g, d)
-  g.world:remove(d.id)
-end
+function nethandler.entityremove(g, d) g.world:remove(d.id) end
 
 function nethandler.entityremoteset(g, d)
   local entity = g.world:entity(d.id)

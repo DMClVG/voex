@@ -162,24 +162,16 @@ function love.update(dt)
 
       for _, c in pairs(world.chunks) do
         if not player.inview(e, c.x * size, c.y * size, c.z * size) then
-          if e.view.chunks[c.hash] then
-            e.view:removechunk(c.hash)
-          end
+          if e.view.chunks[c.hash] then e.view:removechunk(c.hash) end
         else
-          if not e.view.chunks[c.hash] then
-            e.view:insertchunk(c)
-          end
+          if not e.view.chunks[c.hash] then e.view:insertchunk(c) end
         end
       end
       for _, entity in pairs(world.entities) do
         if not player.inview(e, entity.x, entity.y, entity.z) then
-          if e.view:entity(entity.id) then
-            e.view:remove(entity)
-          end
+          if e.view:entity(entity.id) then e.view:remove(entity) end
         else
-          if not e.view:entity(entity.id) then
-            e.view:insert(entity)
-          end
+          if not e.view:entity(entity.id) then e.view:insert(entity) end
         end
       end
     end
