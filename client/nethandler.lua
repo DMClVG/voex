@@ -73,7 +73,7 @@ end
 
 function nethandler.chunkremove(g, d)
   local cx, cy, cz = tonumber(d.cx), tonumber(d.cy), tonumber(d.cz)
-  g.world:removechunk(cx, cy, cz):destroy()
+  g.world:removechunk(loex.hash.spatial(cx, cy, cz)):destroy()
 end
 
 return nethandler
