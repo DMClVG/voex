@@ -67,7 +67,7 @@ function chunk:remove(id)
   return was_before
 end
 
-function chunk:destroy() self.data:release() end
+function chunk:destroy() end
 
 function chunk:dump(uncompressed)
   if not uncompressed then
