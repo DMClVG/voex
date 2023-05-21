@@ -331,7 +331,7 @@ end
 function gameworld:requestremesh(c, priority)
   -- don't add a nil chunk or a chunk that's already in the queue
   local world = self.world
-  if not c or c.inremesh then return end
+  if not c or c.inremesh or not c.data then return end
 
   c.inremesh = true
   if priority then
