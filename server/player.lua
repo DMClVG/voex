@@ -3,7 +3,7 @@ local floor = math.floor
 local size = loex.chunk.size
 local remote = require("remote")
 
-function player.view_onchunkinserted(e, c) e.master:send(packets.chunkadd(c:dump(true), c.x, c.y, c.z)) end
+function player.view_onchunkinserted(e, c) e.master:send(packets.chunkadd(c:dump(), c.x, c.y, c.z)) end
 
 function player.view_onchunkremoved(e, c) e.master:send(packets.chunkremove(c.x, c.y, c.z)) end
 

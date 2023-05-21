@@ -71,7 +71,7 @@ function chunk:destroy() end
 
 function chunk:dump(uncompressed)
   if not uncompressed then
-    return love.data.compress("string", "gzip", self.data)
+    return love.data.compress("string", "zlib", self.data)
   else
     return self.data:getString()
   end

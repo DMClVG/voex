@@ -64,11 +64,12 @@ function nethandler.chunkadd(g, d)
   local cx, cy, cz = tonumber(d.cx), tonumber(d.cy), tonumber(d.cz)
   local c = loex.chunk.new(cx, cy, cz)
   if d.bin then
+    local data = love.data.decompress("data", "zlib", d.bin)
     assert(
-      d.bin:getSize() == expectedsize,
-      ("Chunk data of wrong size! Expected %d bytes, got %d bytes"):format(expectedsize, d.bin:getSize())
+      data:getSize() == expectedsize,
+      ("Chunk data of wrong size! Expected %d bytes, got %d bytes"):format(expectedsize, data:getSize())
     )
-    c:init(d.bin)
+    c:init(data)
   end
   g.world:insertchunk(c)
 end
