@@ -16,7 +16,7 @@ local playerbox = {
   z = 0,
   w = 0.3,
   d = 0.3,
-  h = 0.6,
+  h = 0.9,
 }
 
 local playerobj = g3d.newModel("assets/player.obj", "assets/saul.png")
