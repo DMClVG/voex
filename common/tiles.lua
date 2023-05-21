@@ -7,6 +7,8 @@ tiles.tiles = {
   grass = { id = 3, tex = { 17, 1, 0, 0, 0, 0 } },
   dirt = { id = 4, tex = 1 },
   bricks = { id = 5, tex = 3 },
+  leaves = { id = 6, tex = 16 },
+  log = { id = 7, tex = { 22, 22, 21, 21, 21, 21 } },
 }
 
 local id = {}

@@ -36,7 +36,7 @@ end
 function nethandler.entitymove(g, d)
   assert(false)
   local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
-  local entity = g.world:get(d.id)
+  local entity = g.world:entity(d.id)
   assert(entity)
   entity.x = x
   entity.y = y
@@ -51,29 +51,31 @@ function nethandler.entityadd(g, d)
   g.world:insert(entity)
 end
 
-function nethandler.entityremove(g, d)
-  local entity = g.world:get(d.id)
-  entity.dead = true
-end
+function nethandler.entityremove(g, d) g.world:remove(d.id) end
 
 function nethandler.entityremoteset(g, d)
-  local entity = g.world:get(d.id)
+  local entity = g.world:entity(d.id)
   if entity.id == g.player.id and d.property:match("[xyz]") then return end -- TODO: position correction
   entity[d.property] = d.value
 end
 
 function nethandler.chunkadd(g, d)
-  assert(d.bin:getSize() == loex.chunk.size ^ 3, "Chunk data of wrong size!")
-
+  local expectedsize = loex.chunk.size ^ 3
   local cx, cy, cz = tonumber(d.cx), tonumber(d.cy), tonumber(d.cz)
   local c = loex.chunk.new(cx, cy, cz)
-  c:init(d.bin)
-  g.world:chunk(cx, cy, cz, c)
+  if d.bin then
+    assert(
+      d.bin:getSize() == expectedsize,
+      ("Chunk data of wrong size! Expected %d bytes, got %d bytes"):format(expectedsize, d.bin:getSize())
+    )
+    c:init(d.bin)
+  end
+  g.world:insertchunk(c)
 end
 
 function nethandler.chunkremove(g, d)
   local cx, cy, cz = tonumber(d.cx), tonumber(d.cy), tonumber(d.cz)
-  g.world:removechunk(cx, cy, cz):destroy()
+  g.world:removechunk(loex.hash.spatial(cx, cy, cz)):destroy()
 end
 
 return nethandler

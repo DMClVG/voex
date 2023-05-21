@@ -73,9 +73,9 @@ function gameworld:init(player)
   self.master = master
   local world = loex.world.new()
   world.ontilemodified:catch(self.ontilemodified, self)
-  world.onentityadded:catch(self.onentityadded, self)
+  world.onentityinserted:catch(self.onentityinserted, self)
   world.onentityremoved:catch(self.onentityremoved, self)
-  world.onchunkadded:catch(self.onchunkadded, self)
+  world.onchunkinserted:catch(self.onchunkinserted, self)
   world.onchunkremoved:catch(self.onchunkremoved, self)
 
   self.world = world
@@ -95,14 +95,13 @@ function gameworld:init(player)
   lg.setMeshCullMode("back")
 end
 
-function gameworld:onchunkadded(chunk)
+function gameworld:onchunkinserted(chunk)
   local x, y, z = chunk.x, chunk.y, chunk.z
   self:requestremesh(chunk)
 end
 
 function gameworld:onchunkremoved(chunk) end
-
-function gameworld:onentityadded(entity) print(entity.id .. " added") end
+function gameworld:onentityinserted(entity) print(entity.id .. " added") end
 
 function gameworld:onentityremoved(entity) print(entity.id .. " removed") end
 
@@ -139,7 +138,7 @@ function gameworld:update(dt)
   while self.remeshchannel:peek() do
     local data = self.remeshchannel:pop()
     if not data then break end
-    local c = self.world:chunk(data.cx, data.cy, data.cz)
+    local c = self.world:chunk(loex.hash.spatial(data.cx, data.cy, data.cz))
     if c.model then c.model.mesh:release() end
     c.model = nil
     c.inremesh = false
@@ -311,19 +310,20 @@ end
 function gameworld:mousemoved(x, y, dx, dy) g3d.camera.firstPersonLook(dx, dy) end
 
 function gameworld:ontilemodified(x, y, z, _)
-  local chunk = self.world:chunk(floor(x / size), floor(y / size), floor(z / size))
+  local spatial = loex.hash.spatial
+  local chunk = self.world:chunk(spatial(floor(x / size), floor(y / size), floor(z / size)))
   assert(chunk)
 
   local tx, ty, tz = x % size, y % size, z % size
   local cx, cy, cz = chunk.x, chunk.y, chunk.z
   local world = self.world
 
-  if tx >= size - 1 then self:requestremesh(world:chunk(cx + 1, cy, cz), true) end
-  if tx <= 0 then self:requestremesh(world:chunk(cx - 1, cy, cz), true) end
-  if ty >= size - 1 then self:requestremesh(world:chunk(cx, cy + 1, cz), true) end
-  if ty <= 0 then self:requestremesh(world:chunk(cx, cy - 1, cz), true) end
-  if tz >= size - 1 then self:requestremesh(world:chunk(cx, cy, cz + 1), true) end
-  if tz <= 0 then self:requestremesh(world:chunk(cx, cy, cz - 1), true) end
+  if tx >= size - 1 then self:requestremesh(world:chunk(spatial(cx + 1, cy, cz)), true) end
+  if tx <= 0 then self:requestremesh(world:chunk(spatial(cx - 1, cy, cz)), true) end
+  if ty >= size - 1 then self:requestremesh(world:chunk(spatial(cx, cy + 1, cz)), true) end
+  if ty <= 0 then self:requestremesh(world:chunk(spatial(cx, cy - 1, cz)), true) end
+  if tz >= size - 1 then self:requestremesh(world:chunk(spatial(cx, cy, cz + 1)), true) end
+  if tz <= 0 then self:requestremesh(world:chunk(spatial(cx, cy, cz - 1)), true) end
 
   self:requestremesh(chunk, true)
 end
@@ -331,7 +331,7 @@ end
 function gameworld:requestremesh(c, priority)
   -- don't add a nil chunk or a chunk that's already in the queue
   local world = self.world
-  if not c or c.inremesh then return end
+  if not c or c.inremesh or not c.data then return end
 
   c.inremesh = true
   if priority then

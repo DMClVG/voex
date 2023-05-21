@@ -11,40 +11,20 @@ CHANNEL_UPDATES = 4
 common = require("common")
 packets = require("packets")
 remote = require("remote")
+gen = require("gen")
+local player = require("player")
 
 banlist = {}
 takenusernames = {}
 
 local socket
 local world
+local genstate
 
+local floor = math.floor
 local tiles = loex.tiles
 local size = loex.chunk.size
-
-local function genchunk(c)
-  c:init()
-  local grass = tiles.air.id
-  local dirt = tiles.dirt.id
-  local stone = tiles.stone.id
-  local ptr = c.ptr
-  local x, y, z = c.x * size, c.y * size, c.z * size
-  local f = 0.125 / 10
-  for i = 0, size - 1 do
-    for j = 0, size - 1 do
-      local h = math.floor(love.math.noise((x + i) * f, (y + j) * f) * 17)
-      for k = 0, math.min(h - z, size - 1) do
-        if z + k == h then
-          ptr[i + j * size + k * size * size] = grass
-        elseif z + k > h - 5 then
-          ptr[i + j * size + k * size * size] = dirt
-        else
-          ptr[i + j * size + k * size * size] = stone
-        end
-      end
-    end
-  end
-  return c
-end
+local overworld = require("gen.overworld")
 
 function love.load(args)
   if #args < 1 then
@@ -61,36 +41,33 @@ function love.load(args)
   socket.onreceive:catch(onreceive)
 
   world = loex.world.new()
-  world.onentityadded:catch(world_onentityadded)
+  world.onentityinserted:catch(world_onentityinserted)
   world.onentityremoved:catch(world_onentityremoved)
+  world.ontilemodified:catch(world_ontilemodified)
 
-  for i = -2, 2 do
-    for j = -2, 2 do
-      for k = -2, 2 do
-        world:chunk(i, j, k, genchunk(loex.chunk.new(i, j, k)))
-      end
-    end
-  end
-
-  -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
-  -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
-  -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
-  -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
+  genstate = gen.state.new(overworld.layers, 43242)
 end
 
-function world_onentityadded(e)
-  print(e.id .. " added")
-  local packet = packets.entityadd(e.id, e.x, e.y, e.z)
-  for _, e in pairs(world.entities) do
-    if e:has("player") then e.master:send(packet) end
-  end
-end
+function world_onentityinserted(e) print(e.id .. " added") end
 
 function world_onentityremoved(e)
   print(e.id .. " removed")
-  local packet = packets.entityremove(e.id)
-  for _, e in pairs(world.entities) do
-    if e:has("player") then e.master:send(packet) end
+
+  for _, p in ipairs(world:query("player")) do
+    if p.view:entity(e.id) then p.view:remove(e.id) end
+  end
+end
+
+function world_ontilemodified(x, y, z, t)
+  local packet
+  if t == loex.tiles.air.id then
+    packet = packets.broken(x, y, z)
+  else
+    packet = packets.placed(x, y, z, t)
+  end
+
+  for _, p in ipairs(world:query("player")) do
+    if p.view:tile(x, y, z) >= 0 then p.master:send(packet) end
   end
 end
 
@@ -116,35 +93,19 @@ function handle_player_packet(player, packet)
     ["place"] = function(p, d)
       local x, y, z, t = tonumber(d.x), tonumber(d.y), tonumber(d.z), tonumber(d.t)
       world:tile(x, y, z, t)
-      broadcast(packets.placed(x, y, z, t))
     end,
     ["breaktile"] = function(p, d)
       local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
       world:tile(x, y, z, tiles.air.id)
-      broadcast(packets.broken(x, y, z))
     end,
   }
   handles[packet.type](player, packet)
 end
 
-function sendworld(peer)
-  for _, chunk in pairs(world.chunks) do
-    peer:send(packets.chunkadd(chunk:dump(true), chunk.x, chunk.y, chunk.z))
-  end
-  for _, e in pairs(world.entities) do
-    peer:send(packets.entityadd(e.id, e.x, e.y, e.z))
-  end
-end
 function broadcast(packet)
   for _, e in pairs(world.entities) do
     if e:has("player") then e.master:send(packet) end
   end
-end
-
-function broadcast_remoteset(remote, property, value)
-  -- print(e.id .. " set")
-  local packet = packets.entityremoteset(remote.id, property, value)
-  broadcast(packet)
 end
 
 function onreceive(peer, packet)
@@ -159,18 +120,16 @@ function onreceive(peer, packet)
         peer:disconnect_later()
         return
       end
-      local player = player(0, 0, 50, nil, packet.username, peer)
+      local p = player.entity(0, 0, 180, nil, packet.username, peer)
 
-      peer:send(packets.joinsuccess(player.id, player.x, player.y, player.z), CHANNEL_ONE)
+      peer:send(packets.joinsuccess(p.id, p.x, p.y, p.z), CHANNEL_ONE)
 
-      world:insert(player)
-      peerdata.playerentity = player
+      world:insert(p)
+      peerdata.playerentity = p
 
-      takenusernames[player.username] = true
+      takenusernames[p.username] = true
 
-      print(player.username .. " joined the game :>")
-
-      sendworld(peer)
+      print(p.username .. " joined the game :>")
     else
       error("invalid packet for ghost peer")
     end
@@ -181,34 +140,55 @@ end
 
 function love.update(dt)
   socket:service()
-
+  local gendistance = 5
   for _, e in pairs(world.entities) do
     if e:has("remote") then
       e.remote.x = e.x
       e.remote.y = e.y
       e.remote.z = e.z
     end
+
+    if e:has("player") then
+      for i = -gendistance + floor(e.x / size), gendistance + floor(e.x / size) do
+        for j = -gendistance + floor(e.y / size), gendistance + floor(e.y / size) do
+          for k = 0, overworld.columnheight - 1 do
+            if not world:chunk(loex.hash.spatial(i, j, k)) then
+              local c = overworld:generate(genstate, i, j, k)
+              world:insertchunk(c)
+            end
+          end
+        end
+      end
+
+      for _, c in pairs(world.chunks) do
+        if not player.inview(e, c.x * size, c.y * size, c.z * size) then
+          if e.view.chunks[c.hash] then e.view:removechunk(c.hash) end
+        else
+          if not e.view.chunks[c.hash] then e.view:insertchunk(c) end
+        end
+      end
+      for _, entity in pairs(world.entities) do
+        if not player.inview(e, entity.x, entity.y, entity.z) then
+          if e.view:entity(entity.id) then e.view:remove(entity) end
+        else
+          if not e.view:entity(entity.id) then e.view:insert(entity) end
+        end
+      end
+    end
   end
 
-  for _, e in pairs(world.entities) do
-    if e:has("remote") then
-      for property, _ in pairs(e.remote.edits) do
-        broadcast_remoteset(e, property, e.remote[property])
-        e.remote.edits[property] = nil
+  for _, e in pairs(world:query("remote")) do
+    for property, _ in pairs(e.remote.edits) do
+      local packet = packets.entityremoteset(e.id, property, e.remote[property])
+      e.remote.edits[property] = nil
+      for _, p in ipairs(world:query("player")) do
+        if p.view:entity(e.id) then p.master:send(packet) end
       end
     end
   end
 end
 
 function love.quit() socket:disconnect() end
-
-function player(x, y, z, id, username, master)
-  local player = remote(x, y, z, id)
-  player:tag("player")
-  player.username = username
-  player.master = master
-  return player
-end
 
 function verify(username)
   local validUsername = "^[a-zA-Z_]+$"

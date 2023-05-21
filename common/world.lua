@@ -1,11 +1,10 @@
 local chunk = loex.chunk
 local size = chunk.size
 local floor = math.floor
-
+local spatialhash = loex.hash.spatial
+local insert = table.insert
 local world = {}
 world.__index = world
-
-local function chunkhash(x, y, z) return table.concat({ x, y, z }, "/") end
 
 function world.new()
   local new = {}
@@ -13,9 +12,9 @@ function world.new()
   new.entities = {}
 
   new.ontilemodified = loex.signal.new()
-  new.onentityadded = loex.signal.new()
+  new.onentityinserted = loex.signal.new()
   new.onentityremoved = loex.signal.new()
-  new.onchunkadded = loex.signal.new()
+  new.onchunkinserted = loex.signal.new()
   new.onchunkremoved = loex.signal.new()
 
   setmetatable(new, world)
@@ -23,12 +22,10 @@ function world.new()
   return new
 end
 
-function world:iterate() return pairs(self.entities) end
-
 function world:insert(e)
   assert(not self.entities[e.id])
   self.entities[e.id] = e
-  self.onentityadded:emit(e)
+  self.onentityinserted:emit(e)
 end
 
 function world:remove(e)
@@ -45,21 +42,29 @@ function world:remove(e)
   self.onentityremoved:emit(e)
 end
 
-function world:get(id) return self.entities[id] end
-
-function world:chunk(x, y, z, c)
-  local hash = chunkhash(x, y, z)
-  if c then
-    assert(not self.chunks[hash])
-    self.chunks[hash] = c
-    self.onchunkadded:emit(c)
-  else
-    return self.chunks[hash]
+function world:query(...)
+  local res = {}
+  local tags = { ... }
+  for _, e in pairs(self.entities) do
+    local hastags = true
+    for _, tag in ipairs(tags) do
+      hastags = hastags and e:has(tag)
+    end
+    if hastags then insert(res, e) end
   end
+  return res
 end
 
-function world:removechunk(x, y, z)
-  local hash = chunkhash(x, y, z)
+function world:entity(id) return self.entities[id] end
+function world:chunk(hash) return self.chunks[hash] end
+
+function world:insertchunk(c)
+  assert(not self.chunks[c.hash])
+  self.chunks[c.hash] = c
+  self.onchunkinserted:emit(c)
+end
+
+function world:removechunk(hash)
   local c = self.chunks[hash]
   assert(c)
   self.chunks[hash] = nil
@@ -68,26 +73,25 @@ function world:removechunk(x, y, z)
 end
 
 function world:tile(x, y, z, t)
+  local c = self:chunk(spatialhash(floor(x / size), floor(y / size), floor(z / size)))
   if t then
-    local chunk = self:chunk(floor(x / size), floor(y / size), floor(z / size))
-    assert(chunk)
+    assert(c)
 
-    local old = chunk:set(x % size, y % size, z % size, t)
+    local old = c:set(x % size, y % size, z % size, t)
     if old ~= t then self.ontilemodified:emit(x, y, z, t) end
   else
-    local chunk = self:chunk(floor(x / size), floor(y / size), floor(z / size))
-    if chunk then return chunk:get(x % size, y % size, z % size) end
+    if c then return c:get(x % size, y % size, z % size) end
     return -1
   end
 end
 
 function world:neighbourhood(x, y, z)
-  return self:chunk(x + 1, y, z),
-    self:chunk(x - 1, y, z),
-    self:chunk(x, y + 1, z),
-    self:chunk(x, y - 1, z),
-    self:chunk(x, y, z + 1),
-    self:chunk(x, y, z - 1)
+  return self:chunk(spatialhash(x + 1, y, z)),
+    self:chunk(spatialhash(x - 1, y, z)),
+    self:chunk(spatialhash(x, y + 1, z)),
+    self:chunk(spatialhash(x, y - 1, z)),
+    self:chunk(spatialhash(x, y, z + 1)),
+    self:chunk(spatialhash(x, y, z - 1))
 end
 
 function world:destroy() end

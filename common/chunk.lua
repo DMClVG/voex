@@ -36,12 +36,12 @@ function empty_chunk:destroy() end
 function chunk.new(x, y, z)
   local new = {}
   new.x, new.y, new.z = x, y, z
-  new.entities = {}
+  new.hash = loex.hash.spatial(x, y, z)
   new = setmetatable(new, { __index = empty_chunk })
   return new
 end
 
-function chunk:init() error("Chunk already initialized!") end
+function chunk:init() end
 
 function chunk:set(x, y, z, t)
   if x >= 0 and x < size and y >= 0 and y < size and z >= 0 and z < size then
@@ -67,7 +67,7 @@ function chunk:remove(id)
   return was_before
 end
 
-function chunk:destroy() self.data:release() end
+function chunk:destroy() end
 
 function chunk:dump(uncompressed)
   if not uncompressed then
