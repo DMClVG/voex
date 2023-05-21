@@ -2,6 +2,7 @@ local chunk = loex.chunk
 local size = chunk.size
 local floor = math.floor
 local spatialhash = loex.hash.spatial
+local insert = table.insert
 local world = {}
 world.__index = world
 
@@ -39,6 +40,19 @@ function world:remove(e)
   assert(self.entities[id])
   self.entities[id] = nil
   self.onentityremoved:emit(e)
+end
+
+function world:query(...)
+  local res = {}
+  local tags = { ... }
+  for _, e in pairs(self.entities) do
+    local hastags = true
+    for _, tag in ipairs(tags) do
+      hastags = hastags and e:has(tag)
+    end
+    if hastags then insert(res, e) end
+  end
+  return res
 end
 
 function world:entity(id) return self.entities[id] end
