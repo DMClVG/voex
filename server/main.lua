@@ -11,6 +11,7 @@ CHANNEL_UPDATES = 4
 common = require("common")
 packets = require("packets")
 remote = require("remote")
+gen = require("gen")
 local player = require("player")
 
 banlist = {}
@@ -18,34 +19,12 @@ takenusernames = {}
 
 local socket
 local world
+local genstate
 
+local floor = math.floor
 local tiles = loex.tiles
 local size = loex.chunk.size
-
-local function genchunk(c)
-  c:init()
-  local grass = tiles.air.id
-  local dirt = tiles.dirt.id
-  local stone = tiles.stone.id
-  local ptr = c.ptr
-  local x, y, z = c.x * size, c.y * size, c.z * size
-  local f = 0.125 / 10
-  for i = 0, size - 1 do
-    for j = 0, size - 1 do
-      local h = math.floor(love.math.noise((x + i) * f, (y + j) * f) * 17)
-      for k = 0, math.min(h - z, size - 1) do
-        if z + k == h then
-          ptr[i + j * size + k * size * size] = grass
-        elseif z + k > h - 5 then
-          ptr[i + j * size + k * size * size] = dirt
-        else
-          ptr[i + j * size + k * size * size] = stone
-        end
-      end
-    end
-  end
-  return c
-end
+local overworld = require("gen.overworld")
 
 function love.load(args)
   if #args < 1 then
@@ -65,18 +44,7 @@ function love.load(args)
   world.onentityinserted:catch(world_onentityinserted)
   world.onentityremoved:catch(world_onentityremoved)
 
-  for i = -2, 2 do
-    for j = -2, 2 do
-      for k = -2, 2 do
-        world:insertchunk(genchunk(loex.chunk.new(i, j, k)))
-      end
-    end
-  end
-
-  -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
-  -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
-  -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
-  -- world:chunk(0, 0, 0, loex.chunk.new(0, 0, 0))
+  genstate = gen.state.new(overworld.layers, 43242)
 end
 
 function world_onentityinserted(e)
@@ -169,7 +137,6 @@ function onreceive(peer, packet)
 
       takenusernames[p.username] = true
 
-      sendworld(peer)
       print(p.username .. " joined the game :>")
     else
       error("invalid packet for ghost peer")
@@ -181,12 +148,36 @@ end
 
 function love.update(dt)
   socket:service()
-
+  local gendistance = 5
   for _, e in pairs(world.entities) do
     if e:has("remote") then
       e.remote.x = e.x
       e.remote.y = e.y
       e.remote.z = e.z
+    end
+    if e:has("player") then
+      for i = -gendistance + floor(e.x / size), gendistance + floor(e.x / size) do
+        for j = -gendistance + floor(e.y / size), gendistance + floor(e.y / size) do
+          for k = 0, overworld.columnheight - 1 do
+            if not world:chunk(loex.hash.spatial(i, j, k)) then
+              local c = overworld:generate(genstate, i, j, k)
+              world:insertchunk(c)
+            end
+          end
+        end
+      end
+
+      for _, c in pairs(world.chunks) do
+        if not player.inview(e, c.x * size, c.y * size, c.z * size) then
+          if e.view.chunks[c.hash] then
+            e.view:removechunk(c.hash)
+          end
+        else
+          if not e.view.chunks[c.hash] then
+            e.view:insertchunk(c)
+          end
+        end
+      end
     end
   end
 
