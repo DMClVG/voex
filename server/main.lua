@@ -11,6 +11,7 @@ CHANNEL_UPDATES = 4
 common = require("common")
 packets = require("packets")
 remote = require("remote")
+local player = require("player")
 
 banlist = {}
 takenusernames = {}
@@ -159,18 +160,17 @@ function onreceive(peer, packet)
         peer:disconnect_later()
         return
       end
-      local player = player(0, 0, 50, nil, packet.username, peer)
+      local p = player.entity(0, 0, 180, nil, packet.username, peer)
 
-      peer:send(packets.joinsuccess(player.id, player.x, player.y, player.z), CHANNEL_ONE)
+      peer:send(packets.joinsuccess(p.id, p.x, p.y, p.z), CHANNEL_ONE)
 
-      world:insert(player)
-      peerdata.playerentity = player
+      world:insert(p)
+      peerdata.playerentity = p
 
-      takenusernames[player.username] = true
-
-      print(player.username .. " joined the game :>")
+      takenusernames[p.username] = true
 
       sendworld(peer)
+      print(p.username .. " joined the game :>")
     else
       error("invalid packet for ghost peer")
     end
@@ -201,14 +201,6 @@ function love.update(dt)
 end
 
 function love.quit() socket:disconnect() end
-
-function player(x, y, z, id, username, master)
-  local player = remote(x, y, z, id)
-  player:tag("player")
-  player.username = username
-  player.master = master
-  return player
-end
 
 function verify(username)
   local validUsername = "^[a-zA-Z_]+$"
