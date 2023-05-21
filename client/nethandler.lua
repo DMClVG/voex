@@ -63,11 +63,16 @@ function nethandler.entityremoteset(g, d)
 end
 
 function nethandler.chunkadd(g, d)
-  assert(d.bin:getSize() == loex.chunk.size ^ 3, "Chunk data of wrong size!")
-
+  local expectedsize = loex.chunk.size ^ 3
   local cx, cy, cz = tonumber(d.cx), tonumber(d.cy), tonumber(d.cz)
   local c = loex.chunk.new(cx, cy, cz)
-  c:init(d.bin)
+  if d.bin then
+    assert(
+      d.bin:getSize() == expectedsize,
+      ("Chunk data of wrong size! Expected %d bytes, got %d bytes"):format(expectedsize, d.bin:getSize())
+    )
+    c:init(d.bin)
+  end
   g.world:insertchunk(c)
 end
 
