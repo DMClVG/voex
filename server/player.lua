@@ -11,6 +11,14 @@ function player.view_onchunkremoved(e, c)
   e.master:send(packets.chunkremove(c.x, c.y, c.z))
 end
 
+function player.view_onentityinserted(p, e)
+ p.master:send(packets.entityadd(e.id, e.x, e.y, e.z))
+end
+
+function player.view_onentityremoved(p, e)
+ p.master:send(packets.entityremove(e.id))
+end
+
 function player.entity(x, y, z, id, username, master)
   local new = remote(x, y, z, id)
   new:tag("player")
@@ -19,6 +27,8 @@ function player.entity(x, y, z, id, username, master)
   new.view = loex.world.new()
   new.view.onchunkinserted:catch(player.view_onchunkinserted, new)
   new.view.onchunkremoved:catch(player.view_onchunkremoved, new)
+  new.view.onentityinserted:catch(player.view_onentityinserted, new)
+  new.view.onentityremoved:catch(player.view_onentityremoved, new)
   return new
 end
 

@@ -47,19 +47,13 @@ function love.load(args)
   genstate = gen.state.new(overworld.layers, 43242)
 end
 
-function world_onentityinserted(e)
-  print(e.id .. " added")
-  local packet = packets.entityadd(e.id, e.x, e.y, e.z)
-  for _, e in pairs(world.entities) do
-    if e:has("player") then e.master:send(packet) end
-  end
-end
+function world_onentityinserted(e) print(e.id .. " added") end
 
 function world_onentityremoved(e)
   print(e.id .. " removed")
-  local packet = packets.entityremove(e.id)
-  for _, e in pairs(world.entities) do
-    if e:has("player") then e.master:send(packet) end
+
+  for _, p in ipairs(world:query("player")) do
+    if p.view:entity(e.id) then p.view:remove(e.id) end
   end
 end
 
@@ -96,24 +90,10 @@ function handle_player_packet(player, packet)
   handles[packet.type](player, packet)
 end
 
-function sendworld(peer)
-  for _, chunk in pairs(world.chunks) do
-    peer:send(packets.chunkadd(chunk:dump(true), chunk.x, chunk.y, chunk.z))
-  end
-  for _, e in pairs(world.entities) do
-    peer:send(packets.entityadd(e.id, e.x, e.y, e.z))
-  end
-end
 function broadcast(packet)
   for _, e in pairs(world.entities) do
     if e:has("player") then e.master:send(packet) end
   end
-end
-
-function broadcast_remoteset(remote, property, value)
-  -- print(e.id .. " set")
-  local packet = packets.entityremoteset(remote.id, property, value)
-  broadcast(packet)
 end
 
 function onreceive(peer, packet)
@@ -155,6 +135,7 @@ function love.update(dt)
       e.remote.y = e.y
       e.remote.z = e.z
     end
+
     if e:has("player") then
       for i = -gendistance + floor(e.x / size), gendistance + floor(e.x / size) do
         for j = -gendistance + floor(e.y / size), gendistance + floor(e.y / size) do
@@ -178,14 +159,26 @@ function love.update(dt)
           end
         end
       end
+      for _, entity in pairs(world.entities) do
+        if not player.inview(e, entity.x, entity.y, entity.z) then
+          if e.view:entity(entity.id) then
+            e.view:remove(entity)
+          end
+        else
+          if not e.view:entity(entity.id) then
+            e.view:insert(entity)
+          end
+        end
+      end
     end
   end
 
-  for _, e in pairs(world.entities) do
-    if e:has("remote") then
-      for property, _ in pairs(e.remote.edits) do
-        broadcast_remoteset(e, property, e.remote[property])
-        e.remote.edits[property] = nil
+  for _, e in pairs(world:query("remote")) do
+    for property, _ in pairs(e.remote.edits) do
+      local packet = packets.entityremoteset(e.id, property, e.remote[property])
+      e.remote.edits[property] = nil
+      for _, p in ipairs(world:query("player")) do
+        if p.view:entity(e.id) then p.master:send(packet) end
       end
     end
   end
