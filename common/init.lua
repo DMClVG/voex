@@ -39,6 +39,7 @@ loex.tiles = require(loex.lpath .. "tiles")
 loex.chunk = require(loex.lpath .. "chunk")
 loex.entity = require(loex.lpath .. "entity")
 loex.world = require(loex.lpath .. "world")
+loex.brush = require(loex.lpath .. "brush")
 loex.socket = require(loex.lpath .. "socket")
 
 return loex
