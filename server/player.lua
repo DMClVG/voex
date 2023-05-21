@@ -25,7 +25,7 @@ function player.entity(x, y, z, id, username, master)
 end
 
 function player.inview(e, x, y, z)
-  local range = 2 -- chunks
+  local range = 12 -- chunks
   x, y, z = floor(x / size), floor(y / size), floor(z / size)
   local px, py, pz = floor(e.x / size), floor(e.y / size), floor(e.z / size)
   return loex.utils.distance3d(px, py, 0, x, y, 0, true) <= range * range
