@@ -41,7 +41,7 @@ function chunk.new(x, y, z)
   return new
 end
 
-function chunk:init() error("Chunk already initialized!") end
+function chunk:init() end
 
 function chunk:set(x, y, z, t)
   if x >= 0 and x < size and y >= 0 and y < size and z >= 0 and z < size then
