@@ -31,6 +31,8 @@ loex = {
 assert(love, "this package needs löve!")
 
 lume = require(loex.lpath .. "lib.lume")
+json = require(loex.lpath .. "lib.json")
+inspect = require(loex.lpath .. "lib.inspect")
 
 loex.hash = require(loex.lpath .. "hash")
 loex.signal = require(loex.lpath .. "signal")

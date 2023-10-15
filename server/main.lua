@@ -178,13 +178,16 @@ function love.update(dt)
   end
 
   for _, e in pairs(world:query("remote")) do
-    for property, _ in pairs(e.remote.edits) do
-      local packet = packets.entityremoteset(e.id, property, e.remote[property])
-      e.remote.edits[property] = nil
-      for _, p in ipairs(world:query("player")) do
-        if p.view:entity(e.id) then p.master:send(packet) end
-      end
-    end
+		local sets = {}
+		for k, _ in pairs(e.remote.edits) do
+			sets[k] = e.remote[k]
+			e.remote.edits[k]=nil
+		end
+    local packet = packets.entityremoteset(e.id, sets)
+
+		for _, p in ipairs(world:query("player")) do
+			if p.view:entity(e.id) then p.master:send(packet) end
+		end
   end
 end
 

@@ -29,7 +29,9 @@ end
 function nethandler.placed(g, d)
   local x, y, z, t = tonumber(d.x), tonumber(d.y), tonumber(d.z), tonumber(d.t)
   local hash = ("%d/%d/%d"):format(x, y, z)
-  if not g.placequeue[hash] or g.placequeue[hash].placed ~= t then g.world:tile(x, y, z, t) end
+  if not g.placequeue[hash] or g.placequeue[hash].t ~= t then 
+		g.world:tile(x, y, z, t) 
+	end
   g.placequeue[hash] = nil
 end
 
@@ -55,8 +57,11 @@ function nethandler.entityremove(g, d) g.world:remove(d.id) end
 
 function nethandler.entityremoteset(g, d)
   local entity = g.world:entity(d.id)
-  if entity.id == g.player.id and d.property:match("[xyz]") then return end -- TODO: position correction
-  entity[d.property] = d.value
+	for k, v in pairs(d.properties) do
+  	if not (entity.id == g.player.id and k:match("[xyz]")) then -- TODO: position correction
+  		entity[k] = v
+		end
+	end
 end
 
 function nethandler.chunkadd(g, d)
