@@ -24,6 +24,7 @@ function nethandler.placed(g, d)
   local hash = ("%d/%d/%d"):format(x, y, z)
   if not g.gamescreen.placequeue[hash] or g.gamescreen.placequeue[hash].t ~= t then 
 		g.world:tile(x, y, z, t) 
+		gamescreen.play_place_sound(g, x, y, z)
 	end
   g.gamescreen.placequeue[hash] = nil
 end

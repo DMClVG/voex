@@ -43,6 +43,18 @@ function gamescreen.init(g, player)
 	end
 
 	g.gamescreen.player_model = g3d.newModel("assets/player.obj", "assets/saul.png")
+	g.gamescreen.place_sound = love.sound.newSoundData("assets/place.wav")
+	g.gamescreen.footstep_sounds = {
+		love.sound.newSoundData("assets/audio/footsteps/footstep-01.wav"),
+		love.sound.newSoundData("assets/audio/footsteps/footstep-02.wav"),
+		love.sound.newSoundData("assets/audio/footsteps/footstep-03.wav"),
+		love.sound.newSoundData("assets/audio/footsteps/footstep-04.wav"),
+		love.sound.newSoundData("assets/audio/footsteps/footstep-05.wav"),
+		love.sound.newSoundData("assets/audio/footsteps/footstep-06.wav"),
+		love.sound.newSoundData("assets/audio/footsteps/footstep-07.wav"),
+		love.sound.newSoundData("assets/audio/footsteps/footstep-08.wav"),
+		love.sound.newSoundData("assets/audio/footsteps/footstep-09.wav"),
+	}
 
 	g.gamescreen.gravity = 42
 
@@ -192,6 +204,14 @@ function gamescreen.update(g, dt)
   p.vz = p.vz - self.gravity * dt
 
   local onground = physics.moveandcollide(g.world, p, p.box, dt)
+	if onground and (move.x ~= 0 or move.y ~= 0) then
+		if not p.ssfootsteps:isPlaying() then
+			p.ssfootsteps:queue(self.footstep_sounds[math.random(1, #self.footstep_sounds)])
+			assert(p.ssfootsteps:play())
+		end
+	elseif p.ssfootsteps:isPlaying() then
+		--p.ssfootsteps_end:play()
+	end
 
   g3d.camera.position[1] = p.x
   g3d.camera.position[2] = p.y
@@ -200,6 +220,13 @@ function gamescreen.update(g, dt)
 
 	-- player jump
   if onground and keyboard.isDown("space") then p.vz = jumpforce end
+
+	do 
+    local dx, dy, dz = g3d.camera.getLookVector()
+    local x, y, z = g3d.camera.position[1], g3d.camera.position[2], g3d.camera.position[3]
+		love.audio.setPosition(x,y,z)
+		love.audio.setOrientation(dx,dy,dz, 0,0,1)
+	end
 
   local syncinterval = 1 / 20
   self.synctimer = self.synctimer + dt
@@ -291,8 +318,18 @@ function gamescreen.update(g, dt)
       }
       g.master:send(packets.place(x, y, z, placetile), CHANNEL_EVENTS, "reliable")
       g.world:tile(x, y, z, placetile)
+			gamescreen.play_place_sound(g,x, y, z)
     end
   end
+end
+
+function gamescreen.play_place_sound(g,x,y,z)
+	local self = g.gamescreen
+	local source = love.audio.newSource(self.place_sound)
+	source:setPosition(x, y, z)
+	source:setAttenuationDistances(0.5,2000000)
+	source:setRolloff(0.3)
+	source:play()
 end
 
 function gamescreen.draw(g)
