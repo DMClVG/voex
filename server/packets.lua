@@ -34,11 +34,11 @@ function packets.broken(x, y, z)
 	return encode { type="broken", x=x,y=y,z=z} 
 end
 
-function packets.entityadd(id, x, y, z) 
-	return encode {type="entityadd", x=x,y=y,z=z,id=id} 
+function packets.entityadd(id) 
+	return encode {type="entityadd", id=id } 
 end
 
-function packets.entityremove(id) 
+function packets.entityremove(id) -- TODO: get rid of this packet
 	return encode {type="entityremove", id=id} 
 end
 
@@ -50,7 +50,7 @@ function packets.entityremoteset(id, properties)
 	return encode {
 		type="entityremoteset",
 		id=id,
-		properties=properties
+		properties=properties,
 	}
 end
 

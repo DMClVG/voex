@@ -1,32 +1,19 @@
 if arg[#arg] == "vsc_debug" then require("lldebugger").start() end
 package.path = package.path .. ";?/init.lua"
 
-lg = love.graphics
 ---@diagnostic disable-next-line: missing-parameter
-lg.setDefaultFilter("nearest")
+love.graphics.setDefaultFilter("nearest")
 
 io.stdout:setvbuf("no")
+
+g3d = require("lib/g3d")
+require("common")
 
 CHANNEL_ONE = 0
 CHANNEL_EVENTS = 1
 CHANNEL_UPDATES = 2
 
-g3d = require("lib/g3d")
-scene = require("lib/scene")
-enet = require("enet")
-
-require("common")
-
-require("scenes/gameworld")
-require("physics")
-
-packets = require("packets")
-local nethandler = require("nethandler")
-
-local focused = false
-
-local socket
-_G.master = nil
+local game
 
 function love.load(args)
   if #args < 3 then
@@ -34,79 +21,55 @@ function love.load(args)
     love.event.quit(-1)
     return
   end
-
   local address = args[1] .. ":" .. args[2]
-  username = args[3]
+  local username = args[3]
 
-  socket = loex.socket.connect(address)
-  socket.onconnect:catch(onconnect)
-  socket.ondisconnect:catch(ondisconnect)
-  socket.onreceive:catch(onreceive)
+  local socket = loex.socket.connect(address)
+	assert(socket)
 
-  font = love.graphics.newFont(50)
+  local font = love.graphics.newFont(23)
   love.graphics.setFont(font)
 
-  scene(require("scenes/joinscreen"))
-end
+	game = {}
 
-function onconnect(peer)
-  print("Connected!")
+	game.socket = socket
+	game.username = username
 
-  master = peer
-  master:send(packets.join(username), CHANNEL_ONE)
-end
+	game.ondraw = loex.signal.new()
+	game.onupdate = loex.signal.new()
+	game.onmousemoved = loex.signal.new()
+	game.onmousepressed = loex.signal.new()
+	game.onkeypressed = loex.signal.new()
+	game.onresize = loex.signal.new()
+	game.onquit = loex.signal.new()
 
-function ondisconnect(_) scene(require("scenes/errorscreen"), "disconnected :(") end
-
-function onreceive(_, packet)
-  print("Received " .. packet.type)
-
-  local handle = nethandler[packet.type]
-  if not handle then
-    error("Unknown packet type " .. packet.type)
-  else
-    handle(scene(), packet)
-  end
+	require("screens.joinscreen").init(game)
 end
 
 function love.update(dt)
-  socket:service()
-
-  local scene = scene()
-  if scene and scene.update then scene:update(dt) end
+	game.onupdate:emit(game, dt)
 end
 
 function love.draw()
-  local scene = scene()
-  if scene and scene.draw then scene:draw() end
+	game.ondraw:emit(game)
 end
 
-function love.mousepressed()
-  if not focused then focused = true end
+function love.mousepressed(x,y,button,istouch,presses)
+	game.onmousepressed:emit(game,x,y,button,istouch,presses)
 end
 
-function love.focus(hasFocus) focused = hasFocus end
-
-function love.mousemoved(x, y, dx, dy)
-  local scene = scene()
-  if scene and focused and scene.mousemoved then scene:mousemoved(x, y, dx, dy) end
+function love.mousemoved(x, y, dx, dy,istouch)
+	game.onmousemoved:emit(game,x,y,dx,dy,istouch)
 end
 
-function love.keypressed(k)
-  if k == "escape" then
-    love.mouse.setRelativeMode(false)
-    focused = false
-  end
+function love.keypressed(k,scancode,isrepeat)
+	game.onkeypressed:emit(game, k, scancode, isrepeat)
 end
 
 function love.resize(w, h)
-  g3d.camera.aspectRatio = w / h
-  g3d.camera.updateProjectionMatrix()
+	game.onresize:emit(game,w,h)
 end
 
 function love.quit()
-  if socket then
-    print("Disconnecting ....")
-    socket:disconnect()
-  end
+	game.onquit:emit(game)
 end

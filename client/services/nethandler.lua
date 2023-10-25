@@ -1,38 +1,31 @@
 local nethandler = {}
 
-function nethandler.joinsuccess(_, d)
-  local spawnx, spawny, spawnz = tonumber(d.x), tonumber(d.y), tonumber(d.z)
-  assert(d.id)
-  local player = loex.entity.new(spawnx, spawny, spawnz, d.id)
-  player.username = username
-
-  print(
-    ("Joined under username " .. player.username .. " (ID: " .. player.id .. ") at spawn point %d, %d, %d"):format(
-      spawnx,
-      spawny,
-      spawnz
-    )
-  )
-
-  scene(require("scenes/gameworld"), player)
+function nethandler.init(g)
+	g.socket.onreceive:catch(nethandler.onreceive, g)
 end
 
-function nethandler.joinfailure(_, d) scene(require("scenes/errorscreen"), d.cause) end
+function nethandler.onreceive(g, peer, d)
+	if d.type == "joinsuccess" then return end -- FIXME
+
+	print("received " .. d.type)
+	nethandler[d.type](g, d)
+end
 
 function nethandler.broken(g, d)
   local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
   local hash = ("%d/%d/%d"):format(x, y, z)
-  if not g.breakqueue[hash] then g.world:tile(x, y, z, loex.tiles.air.id, true) end
-  g.breakqueue[hash] = nil
+  if not g.gamescreen.breakqueue[hash] then g.world:tile(x, y, z, loex.tiles.air.id, true) end
+  g.gamescreen.breakqueue[hash] = nil
 end
 
 function nethandler.placed(g, d)
+	local gamescreen = require("screens.gamescreen")
   local x, y, z, t = tonumber(d.x), tonumber(d.y), tonumber(d.z), tonumber(d.t)
   local hash = ("%d/%d/%d"):format(x, y, z)
-  if not g.placequeue[hash] or g.placequeue[hash].t ~= t then 
+  if not g.gamescreen.placequeue[hash] or g.gamescreen.placequeue[hash].t ~= t then 
 		g.world:tile(x, y, z, t) 
 	end
-  g.placequeue[hash] = nil
+  g.gamescreen.placequeue[hash] = nil
 end
 
 function nethandler.entitymove(g, d)
@@ -46,19 +39,16 @@ function nethandler.entitymove(g, d)
 end
 
 function nethandler.entityadd(g, d)
-  if d.id == g.player.id then return end
-
-  local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
-  local entity = loex.entity.new(x, y, z, d.id)
-  g.world:insert(entity)
 end
 
-function nethandler.entityremove(g, d) g.world:remove(d.id) end
+function nethandler.entityremove(g, d) 
+	g.world:remove(g.world:entity(d.id)) 
+end
 
 function nethandler.entityremoteset(g, d)
   local entity = g.world:entity(d.id)
 	for k, v in pairs(d.properties) do
-  	if not (entity.id == g.player.id and k:match("[xyz]")) then -- TODO: position correction
+  	if not (entity.id == g.gamescreen.player.id and k:match("[xyz]")) then -- TODO: position correction
   		entity[k] = v
 		end
 	end

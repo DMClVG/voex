@@ -1,30 +1,15 @@
 if arg[#arg] == "vsc_debug" then require("lldebugger").start() end
 package.path = package.path .. ";?/init.lua"
+require("common")
 
-IS_SERVER = true
+-- IS_SERVER = true
 
 CHANNEL_ONE = 0
 CHANNEL_CHUNKS = 1
 CHANNEL_EVENTS = 3
 CHANNEL_UPDATES = 4
 
-common = require("common")
-packets = require("packets")
-remote = require("remote")
-gen = require("gen")
-local player = require("player")
-
-banlist = {}
-takenusernames = {}
-
-local socket
-local world
-local genstate
-
-local floor = math.floor
-local tiles = loex.tiles
-local size = loex.chunk.size
-local overworld = require("gen.overworld")
+local game 
 
 function love.load(args)
   if #args < 1 then
@@ -32,177 +17,20 @@ function love.load(args)
     return love.event.quit(-1)
   end
 
-  port = tonumber(args[1])
+  local port = tonumber(args[1])
   print("starting server on port " .. tostring(port) .. "...")
+  local socket = loex.socket.host(port, 64)
 
-  socket = loex.socket.host(port, 64)
-  socket.onconnect:catch(onconnect)
-  socket.ondisconnect:catch(ondisconnect)
-  socket.onreceive:catch(onreceive)
-
-  world = loex.world.new()
-  world.onentityinserted:catch(world_onentityinserted)
-  world.onentityremoved:catch(world_onentityremoved)
-  world.ontilemodified:catch(world_ontilemodified)
-
-  genstate = gen.state.new(overworld.layers, 43242)
+	game = require("game").new()
+	game:init(socket)
 end
 
-function world_onentityinserted(e) print(e.id .. " added") end
-
-function world_onentityremoved(e)
-  print(e.id .. " removed")
-
-  for _, p in ipairs(world:query("player")) do
-    if p.view:entity(e.id) then p.view:remove(e.id) end
-  end
-end
-
-function world_ontilemodified(x, y, z, t)
-  local packet
-  if t == loex.tiles.air.id then
-    packet = packets.broken(x, y, z)
-  else
-    packet = packets.placed(x, y, z, t)
-  end
-
-  for _, p in ipairs(world:query("player")) do
-    if p.view:tile(x, y, z) >= 0 then p.master:send(packet) end
-  end
-end
-
-function onconnect(peer) print("Connected!") end
-
-function ondisconnect(peer)
-  local peerdata = socket:peerdata(peer)
-  if peerdata.playerentity then
-    print(peerdata.playerentity.username .. " left the game :<")
-    world:remove(peerdata.playerentity)
-    takenusernames[peerdata.playerentity.username] = nil
-  end
-end
-
-function handle_player_packet(player, packet)
-  local handles = {
-    ["move"] = function(p, d)
-      local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
-      p.x = x
-      p.y = y
-      p.z = z
-    end,
-    ["place"] = function(p, d)
-      local x, y, z, t = tonumber(d.x), tonumber(d.y), tonumber(d.z), tonumber(d.t)
-      world:tile(x, y, z, t)
-    end,
-    ["breaktile"] = function(p, d)
-      local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
-      world:tile(x, y, z, tiles.air.id)
-    end,
-  }
-  handles[packet.type](player, packet)
-end
-
-function broadcast(packet)
-  for _, e in pairs(world.entities) do
-    if e:has("player") then e.master:send(packet) end
-  end
-end
-
-function onreceive(peer, packet)
-  print("Received " .. packet.type)
-  local peerdata = socket:peerdata(peer)
-
-  if peerdata.playerentity == nil then
-    if packet.type == "join" then
-      local err = verify(packet.username)
-      if err then
-        peer:send(packets.joinfailure(err), CHANNEL_ONE)
-        peer:disconnect_later()
-        return
-      end
-      local p = player.entity(0, 0, 180, nil, packet.username, peer)
-
-      peer:send(packets.joinsuccess(p.id, p.x, p.y, p.z), CHANNEL_ONE)
-
-      world:insert(p)
-      peerdata.playerentity = p
-
-      takenusernames[p.username] = true
-
-      print(p.username .. " joined the game :>")
-    else
-      error("invalid packet for ghost peer")
-    end
-  else
-    handle_player_packet(peerdata.playerentity, packet)
-  end
-end
 
 function love.update(dt)
-  socket:service()
-  local gendistance = 5
-  for _, e in pairs(world.entities) do
-    if e:has("remote") then
-      e.remote.x = e.x
-      e.remote.y = e.y
-      e.remote.z = e.z
-    end
-
-    if e:has("player") then
-      for i = -gendistance + floor(e.x / size), gendistance + floor(e.x / size) do
-        for j = -gendistance + floor(e.y / size), gendistance + floor(e.y / size) do
-          for k = 0, overworld.columnheight - 1 do
-            if not world:chunk(loex.hash.spatial(i, j, k)) then
-              local c = overworld:generate(genstate, i, j, k)
-              world:insertchunk(c)
-            end
-          end
-        end
-      end
-
-      for _, c in pairs(world.chunks) do
-        if not player.inview(e, c.x * size, c.y * size, c.z * size) then
-          if e.view.chunks[c.hash] then e.view:removechunk(c.hash) end
-        else
-          if not e.view.chunks[c.hash] then e.view:insertchunk(c) end
-        end
-      end
-      for _, entity in pairs(world.entities) do
-        if not player.inview(e, entity.x, entity.y, entity.z) then
-          if e.view:entity(entity.id) then e.view:remove(entity) end
-        else
-          if not e.view:entity(entity.id) then e.view:insert(entity) end
-        end
-      end
-    end
-  end
-
-  for _, e in pairs(world:query("remote")) do
-		local sets = {}
-		for k, _ in pairs(e.remote.edits) do
-			sets[k] = e.remote[k]
-			e.remote.edits[k]=nil
-		end
-    local packet = packets.entityremoteset(e.id, sets)
-
-		for _, p in ipairs(world:query("player")) do
-			if p.view:entity(e.id) then p.master:send(packet) end
-		end
-  end
+	game:update(dt)
 end
 
-function love.quit() socket:disconnect() end
-
-function verify(username)
-  local validUsername = "^[a-zA-Z_]+$"
-
-  if banlist[username] then return "You're banned from this server. Cry about it :-(" end
-
-  if #username < 3 then return "Username too short" end
-
-  if #username > 15 then return "Username too long" end
-
-  if not username:match(validUsername) then return "Invalid username (It has to be good)" end
-
-  if takenusernames[username] then return "Username already taken. Try again :)" end
+function love.quit() 
+	game:shutdown()
 end
+

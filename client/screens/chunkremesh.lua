@@ -2,7 +2,10 @@ require("love.math")
 require("love.data")
 local ffi = require("ffi")
 
-local channel, cx, cy, cz, blockdata, size, tids, n1, n2, n3, n4, n5, n6 = ...
+local channel, cx, cy, cz, blockdata, size, tids, 
+n1, n2, n3, n4, n5, n6,
+c0, c1, c2, c3, c4, c5, c6 = ...
+
 local blockdatapointer = ffi.cast("uint8_t *", blockdata:getFFIPointer())
 local n1p = n1 and ffi.cast("uint8_t *", n1:getFFIPointer())
 local n2p = n2 and ffi.cast("uint8_t *", n2:getFFIPointer())
@@ -11,9 +14,28 @@ local n4p = n4 and ffi.cast("uint8_t *", n4:getFFIPointer())
 local n5p = n5 and ffi.cast("uint8_t *", n5:getFFIPointer())
 local n6p = n6 and ffi.cast("uint8_t *", n6:getFFIPointer())
 
-local c1 = 1
-local c2 = 0.75
-local c3 = 0.5
+local c0p = c0 and ffi.cast("uint8_t *", c0:getFFIPointer())
+local c1p = c1 and ffi.cast("uint8_t *", c1:getFFIPointer())
+local c2p = c2 and ffi.cast("uint8_t *", c2:getFFIPointer())
+local c3p = c3 and ffi.cast("uint8_t *", c3:getFFIPointer())
+local c4p = c4 and ffi.cast("uint8_t *", c4:getFFIPointer())
+local c5p = c5 and ffi.cast("uint8_t *", c5:getFFIPointer())
+local c6p = c6 and ffi.cast("uint8_t *", c6:getFFIPointer())
+
+local function getc(pointer, x, y, z)
+	if true then return 255 end
+  local i = x + size * y + size * size * z
+
+  -- if this block is outside of the chunk, check the neighboring chunks if they exist
+  if x >= size then return c1p and getc(c1p, x % size, y % size, z % size) or -1 end
+  if x < 0 then return c2p and getc(c2p, x % size, y % size, z % size) or -1 end
+  if y >= size then return c3p and getc(c3p, x % size, y % size, z % size) or -1 end
+  if y < 0 then return c4p and getc(c4p, x % size, y % size, z % size) or -1 end
+  if z >= size then return c5p and getc(c5p, x % size, y % size, z % size) or -1 end
+  if z < 0 then return c6p and getc(c6p, x % size, y % size, z % size) or -1 end
+
+  return pointer[i]
+end
 
 local function gettile(pointer, x, y, z)
   local i = x + size * y + size * size * z
@@ -70,6 +92,7 @@ if count > 0 then
     for i = start, stop, step do
       local primary = i % 2 == 1
       local secondary = i > 2 and i < 6
+			local c = getc(c0p, x,y,z) / 255
       datapointer[dataindex].x = x + (mx == 1 and primary and 1 or 0) + (mx == 2 and secondary and 1 or 0)
       datapointer[dataindex].y = y + (my == 1 and primary and 1 or 0) + (my == 2 and secondary and 1 or 0)
       datapointer[dataindex].z = z + (mz == 1 and primary and 1 or 0) + (mz == 2 and secondary and 1 or 0)

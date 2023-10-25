@@ -43,5 +43,6 @@ loex.entity = require(loex.lpath .. "entity")
 loex.world = require(loex.lpath .. "world")
 loex.brush = require(loex.lpath .. "brush")
 loex.socket = require(loex.lpath .. "socket")
+loex.physics = require(loex.lpath .. "physics")
 
 return loex
