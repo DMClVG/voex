@@ -1,11 +1,12 @@
 local packets = {}
+local encode = loex.socket.encode
 
-function packets.place(x, y, z, t) return ("[type=place;x=%d;y=%d;z=%d;t=%d;]"):format(x, y, z, t) end
+function packets.place(x, y, z, t) return encode { type = "place", x = x, y = y, z = z, t = t } end
 
-function packets.breaktile(x, y, z) return ("[type=breaktile;x=%d;y=%d;z=%d;]"):format(x, y, z) end
+function packets.breaktile(x, y, z) return encode { type = "breaktile", x = x, y = y, z = z } end
 
-function packets.join(username) return ("[type=join;username=%s;]"):format(username) end
+function packets.join(username) return encode { type = "join", username = username } end
 
-function packets.move(x, y, z) return ("[type=move;x=%f;y=%f;z=%f;]"):format(x, y, z) end
+function packets.move(x, y, z) return encode { type = "move", x = x, y = y, z = z } end
 
 return packets

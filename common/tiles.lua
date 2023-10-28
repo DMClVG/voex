@@ -9,6 +9,7 @@ tiles.tiles = {
   bricks = { id = 5, tex = 3 },
   leaves = { id = 6, tex = 16 },
   log = { id = 7, tex = { 22, 22, 21, 21, 21, 21 } },
+  slime = { id = 8, tex = 5, bounce = 0.8 },
 }
 
 local id = {}

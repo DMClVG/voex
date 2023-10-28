@@ -9,7 +9,9 @@ world.__index = world
 function world.new()
   local new = {}
   new.chunks = {}
+
   new.entities = {}
+  new.tagtables = {}
 
   new.ontilemodified = loex.signal.new()
   new.onentityinserted = loex.signal.new()
@@ -28,34 +30,62 @@ function world:insert(e)
   self.onentityinserted:emit(e)
 end
 
-function world:remove(e)
-  assert(e)
-  local id
-  if type(e) == "table" then
-    id = e.id
-  else
-    id = e
-    e = self.entities[id]
+function world:tag(e, tag)
+  local tagtable = self.tagtables[tag]
+  if not tagtable then
+    tagtable = {}
+    self.tagtables[tag] = tagtable
   end
-  assert(self.entities[id])
-  self.entities[id] = nil
+  tagtable[e.id] = e
+
+  return tags
+end
+
+function world:untag(e, tag)
+  local tagtable = self.tagtables[tag]
+  if tagtable then tagtable[e.id] = nil end
+end
+
+function world:tagged(e, tag)
+  local tagtable = self.tagtables[tag]
+  return tagtable and tagtable[e.id]
+end
+
+function world:remove(e)
+  assert(self.entities[e.id], "entity does not exist")
+  local e = self.entities[e.id]
+  self.entities[e.id] = nil
+
+  for _, tagtable in pairs(self.tagtables) do
+    tagtable[e.id] = nil
+  end
   self.onentityremoved:emit(e)
 end
 
-function world:query(...)
-  local res = {}
-  local tags = { ... }
-  for _, e in pairs(self.entities) do
-    local hastags = true
-    for _, tag in ipairs(tags) do
-      hastags = hastags and e:has(tag)
-    end
-    if hastags then insert(res, e) end
+local function intersect(a, b)
+  local t = {}
+  if a == nil or b == nil then return t end
+
+  for k, _ in pairs(a) do
+    if b[k] ~= nil then t[k] = true end
   end
-  return res
+  return t
+end
+
+function world:query(...)
+  local tags = { ... }
+  if #tags == 0 then return self.entities end
+
+  local query = self.tagtables[tags[1]]
+
+  for i = 2, #tags do
+    query = intersect(query, self.tagtables[tags[i]])
+  end
+  return query or {}
 end
 
 function world:entity(id) return self.entities[id] end
+
 function world:chunk(hash) return self.chunks[hash] end
 
 function world:insertchunk(c)
