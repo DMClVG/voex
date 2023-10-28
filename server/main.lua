@@ -9,7 +9,7 @@ CHANNEL_CHUNKS = 1
 CHANNEL_EVENTS = 3
 CHANNEL_UPDATES = 4
 
-local game 
+local game
 
 function love.load(args)
   if #args < 1 then
@@ -21,16 +21,10 @@ function love.load(args)
   print("starting server on port " .. tostring(port) .. "...")
   local socket = loex.socket.host(port, 64)
 
-	game = require("game").new()
-	game:init(socket)
+  game = require("game").new()
+  game:init(socket)
 end
 
+function love.update(dt) game:update(dt) end
 
-function love.update(dt)
-	game:update(dt)
-end
-
-function love.quit() 
-	game:shutdown()
-end
-
+function love.quit() game:shutdown() end

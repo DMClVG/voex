@@ -1,45 +1,35 @@
 local packets = {}
 local encode = loex.socket.encode
 
-function packets.joinsuccess(id, x, y, z) 
-	return encode {
-		type="joinsuccess",
-		x=x,
-		y=y,
-		z=z,
-		id=id
-	}
+function packets.joinsuccess(id, x, y, z)
+  return encode {
+    type = "joinsuccess",
+    x = x,
+    y = y,
+    z = z,
+    id = id,
+  }
 end
 
-function packets.joinfailure(cause) 
-	return encode {
-		type="joinfailure",
-		cause=cause
-	}
+function packets.joinfailure(cause)
+  return encode {
+    type = "joinfailure",
+    cause = cause,
+  }
 end
 
-function packets.chunkadd(tiles, cx, cy, cz)
-  return encode { type="chunkadd", cx=cx, cy=cy, cz=cz, bin=tiles }
-end
+function packets.chunkadd(tiles, cx, cy, cz) return encode { type = "chunkadd", cx = cx, cy = cy, cz = cz, bin = tiles } end
 
-function packets.chunkremove(cx, cy, cz) 
-	return encode { type="chunkremove", cx=cx,cy=cy,cz=cz }
-end
+function packets.chunkremove(cx, cy, cz) return encode { type = "chunkremove", cx = cx, cy = cy, cz = cz } end
 
-function packets.placed(x, y, z, t) 
-	return encode { type="placed",x=x,y=y,z=z,t=t }
-end
+function packets.placed(x, y, z, t) return encode { type = "placed", x = x, y = y, z = z, t = t } end
 
-function packets.broken(x, y, z) 
-	return encode { type="broken", x=x,y=y,z=z} 
-end
+function packets.broken(x, y, z) return encode { type = "broken", x = x, y = y, z = z } end
 
-function packets.entityadd(id) 
-	return encode {type="entityadd", id=id } 
-end
+function packets.entityadd(id) return encode { type = "entityadd", id = id } end
 
 function packets.entityremove(id) -- TODO: get rid of this packet
-	return encode {type="entityremove", id=id} 
+  return encode { type = "entityremove", id = id }
 end
 
 -- function packets.entitymove(id, x, y, z)
@@ -47,11 +37,11 @@ end
 -- end
 
 function packets.entityremoteset(id, properties)
-	return encode {
-		type="entityremoteset",
-		id=id,
-		properties=properties,
-	}
+  return encode {
+    type = "entityremoteset",
+    id = id,
+    properties = properties,
+  }
 end
 
 return packets
