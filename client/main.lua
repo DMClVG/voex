@@ -31,6 +31,7 @@ function love.load(args)
   love.graphics.setFont(font)
 
 	game = {}
+	game.gravity = 42 -- TODO
 
 	game.socket = socket
 	game.username = username

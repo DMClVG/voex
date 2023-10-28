@@ -30,6 +30,7 @@ function game:init(socket)
 	require("services.connection_manager").init(self)
 	require("services.player").init(self)
 	require("services.sync").init(self)
+	require("common.services.snowball").init(self)
 end
 
 function game:update(dt)

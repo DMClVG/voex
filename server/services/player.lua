@@ -1,7 +1,8 @@
 local overworld = require("gen.overworld")
 local packets = require("packets")
-local socket = loex.socket
+local snowball = require("common.services.snowball")
 
+local socket = loex.socket
 local size = loex.chunk.size
 local entity = loex.entity
 local floor = math.floor
@@ -25,13 +26,22 @@ function player.view_onchunkremoved(g, p, c)
 end
 
 function player.view_onentityinserted(g, p, e) 
-	if g.world:tagged(p, "player") then
-		p.master:send(socket.encode { -- TODO
+ 	-- TODO: need abstraction for this
+	if g.world:tagged(e, "player") then
+		p.master:send(socket.encode {
 			type="entityadd",
 			id=e.id,
-			x=p.x,y=p.y,z=p.z,
-			username=p.username,
+			x=e.x,y=e.y,z=e.z,
+			username=e.username,
 			entity_type="player"
+		})
+	elseif g.world:tagged(e, "snowball") then
+		p.master:send(socket.encode {
+			type="entityadd",
+			id=e.id,
+			x=e.x,y=e.y,z=e.z,
+			vx=e.vx,vy=e.vy,vz=e.vz,
+			entity_type="snowball",
 		})
 	end
 end
@@ -101,6 +111,16 @@ function player.socket_onreceive(g, peer, d)
       local x, y, z = tonumber(d.x), tonumber(d.y), tonumber(d.z)
       world:tile(x, y, z, loex.tiles.air.id)
     end,
+		["snowball_throw"] = function(p, d)
+			-- throw snowballs
+			--if os.time() - p.last_throw > 0.05 then
+				print("thrown snowball")
+				p.last_throw = os.time()
+
+				local e = snowball.entity(g, lume.uuid(), d.x, d.y, d.z, d.vx, d.vy, d.vz)
+				e.remote = {}
+			--end
+		end
   }
   handles[d.type](p, d)
 end
@@ -133,11 +153,11 @@ function player.update(g, dt)
 	local genstate = g.genstate
   local gendistance = 5
 
-	for _, e in pairs(g.world:query("player")) do
+	for _, p in pairs(g.world:query("player")) do
 
 		-- generate world
-		for i = -gendistance + floor(e.x / size), gendistance + floor(e.x / size) do
-			for j = -gendistance + floor(e.y / size), gendistance + floor(e.y / size) do
+		for i = -gendistance + floor(p.x / size), gendistance + floor(p.x / size) do
+			for j = -gendistance + floor(p.y / size), gendistance + floor(p.y / size) do
 				for k = 0, overworld.columnheight - 1 do
 					if not world:chunk(loex.hash.spatial(i, j, k)) then
 						local c = overworld:generate(genstate, i, j, k)
@@ -147,43 +167,40 @@ function player.update(g, dt)
 			end
 		end
 		
-		-- throw snowballs
-		--if os.time() - e.last_throw > 2 then
-		--	local new_snowball = snowball.entity(g:next_id(), e.x, e.y, e.z)
-		--	world:insert(new_snowball)
-		--	e.last_throw = os.time()
-		--end
 
 		-- compute chunks in player view
 		for _, c in pairs(world.chunks) do
-			if not player.inview(e, c.x * size, c.y * size, c.z * size) then
-				if e.view.chunks[c.hash] then e.view:removechunk(c.hash) end
+			if not player.inview(p, c.x * size, c.y * size, c.z * size) then
+				if p.view.chunks[c.hash] then p.view:removechunk(c.hash) end
 			else
-				if not e.view.chunks[c.hash] then e.view:insertchunk(c) end
+				if not p.view.chunks[c.hash] then p.view:insertchunk(c) end
 			end
 		end
 
 		-- compute entities in player view
-		for _, entity in pairs(world.entities) do
-			if entity ~= e then 
-				if not player.inview(e, entity.x, entity.y, entity.z) then
-					if e.view:entity(entity.id) then e.view:remove(entity) end
+		for _, e in pairs(world.entities) do
+			if e ~= p then 
+				if not player.inview(p, e.x, e.y, e.z) then
+					if p.view:entity(e.id) then p.view:remove(e) end
 				else
-					if not e.view:entity(entity.id) then 
-						e.view:insert(entity) 
+					if not p.view:entity(e.id) then 
+						p.view:insert(e) 
 					else
-						if not (entity.remote.x == entity.x and entity.remote.y == entity.y and entity.remote.z == entity.z) then
-							e.master:send(socket.encode {
+						-- TODO: this is bad, really bad
+						if not (e.remote.x == e.x and e.remote.y == e.y and e.remote.z == e.z) then
+							p.master:send(socket.encode {
 								type="entityremoteset",
-								id=entity.id,
-								properties={x=entity.x,y=entity.y,z=entity.z},
+								id=e.id,
+								properties={x=e.x,y=e.y,z=e.z},
 							})
-							entity.remote.x, entity.remote.y, entity.remote.z = entity.x, entity.y, entity.z
 						end
 					end
 				end
 			end
 		end
+	end
+	for _, e in pairs(world.entities) do
+		if e.remote then e.remote.x, e.remote.y, e.remote.z = e.x, e.y, e.z end
 	end
 end
 

@@ -1,6 +1,8 @@
 local packets = require("packets")
+local quad = require("quad")
 
 local physics = loex.physics
+local socket = loex.socket
 local size = loex.chunk.size
 local lg = love.graphics
 
@@ -42,8 +44,9 @@ function gamescreen.init(g, player)
 		g.gamescreen.threadpool[i] = love.thread.newThread("screens/chunkremesh.lua")
 	end
 
-	g.gamescreen.place_sound = love.sound.newSoundData("assets/place.wav")
 	g.gamescreen.player_model = quad(lg.newImage("assets/saul.png"))
+	g.gamescreen.snowball_model = quad(lg.newImage("assets/snowball.png"))
+	g.gamescreen.place_sound = love.sound.newSoundData("assets/audio/place.wav")
 	g.gamescreen.footstep_sounds = {
 		love.sound.newSoundData("assets/audio/footsteps/footstep-01.wav"),
 		love.sound.newSoundData("assets/audio/footsteps/footstep-02.wav"),
@@ -65,6 +68,7 @@ function gamescreen.init(g, player)
 	g.onupdate:catch(gamescreen.update)
 	g.onmousemoved:catch(gamescreen.onmousemoved)
 	--g.onmousepressed:catch(gamescreen.onmousepressed)
+	g.onkeypressed:catch(gamescreen.onkeypressed)
   g.world.ontilemodified:catch(gamescreen.ontilemodified, g)
   g.world.onentityinserted:catch(gamescreen.onentityinserted, g)
   g.world.onentityremoved:catch(gamescreen.onentityremoved, g)
@@ -73,6 +77,7 @@ function gamescreen.init(g, player)
 
 	require("services.nethandler").init(g)
 	require("services.player").init(g)
+	require("common.services.snowball").init(g)
 end
 
 
@@ -209,8 +214,6 @@ function gamescreen.update(g, dt)
 			p.ssfootsteps:queue(self.footstep_sounds[math.random(1, #self.footstep_sounds)])
 			assert(p.ssfootsteps:play())
 		end
-	elseif p.ssfootsteps:isPlaying() then
-		--p.ssfootsteps_end:play()
 	end
 
   g3d.camera.position[1] = p.x
@@ -357,8 +360,27 @@ function gamescreen.draw(g)
 	lg.rectangle("fill", (lg.getWidth()-cross)/2, (lg.getHeight()-cross)/2, cross, cross)
 end
 
+function gamescreen.throw_snowball(g)
+  local x, y, z = g3d.camera.position[1], g3d.camera.position[2], g3d.camera.position[3]
+  local dx, dy, dz = g3d.camera.getLookVector()
+	local force = 30
+	g.master:send(socket.encode {
+		type="snowball_throw",
+		x=x,y=y,z=z,
+		vx=dx*force,vy=dy*force,vz=dz*force
+	})
+	g.gamescreen.player.sssnowball_throw:play()	
+end
+
 function gamescreen.onmousemoved(g, x, y, dx, dy, istouch) 
 	g3d.camera.firstPersonLook(dx, dy) 
+end
+
+function gamescreen.onkeypressed(g, k) 
+	if k == "q" then
+		print("thrown snowball")
+		gamescreen.throw_snowball(g)
+	end
 end
 
 function gamescreen.ontilemodified(g, x, y, z, _)

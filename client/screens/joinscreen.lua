@@ -45,9 +45,7 @@ function joinscreen.socket_onreceive(g, peer, d)
 
 		player.ssfootsteps = love.audio.newQueueableSource(48000, 16, 1)
 		player.ssfootsteps:setAttenuationDistances(1, 1)
-
-		player.ssfootsteps_end = love.audio.newSource("assets/footsteps_end.wav", "static")
-		player.ssfootsteps_end:setAttenuationDistances(1, 1)
+		player.sssnowball_throw = love.audio.newSource("assets/audio/snowball_throw.wav", "static")
 
 		g.world:insert(player)
 		g.world:tag(player, "player")
