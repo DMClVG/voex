@@ -42,8 +42,8 @@ function gamescreen.init(g, player)
 		g.gamescreen.threadpool[i] = love.thread.newThread("screens/chunkremesh.lua")
 	end
 
-	g.gamescreen.player_model = g3d.newModel("assets/player.obj", "assets/saul.png")
 	g.gamescreen.place_sound = love.sound.newSoundData("assets/place.wav")
+	g.gamescreen.player_model = quad(lg.newImage("assets/saul.png"))
 	g.gamescreen.footstep_sounds = {
 		love.sound.newSoundData("assets/audio/footsteps/footstep-01.wav"),
 		love.sound.newSoundData("assets/audio/footsteps/footstep-02.wav"),

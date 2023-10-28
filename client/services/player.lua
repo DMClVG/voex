@@ -28,9 +28,9 @@ function player.ondraw(g)
 
   for _, e in pairs(g.world:query("player")) do
     if e ~= g.gamescreen.player then
-			player_model:setTranslation(e.x, e.y, e.z - 0.9)
+			player_model:setTranslation(e.x, e.y, e.z)
 			player_model:setRotation(0, 0, math.atan2(e.y - camera[2], e.x - camera[1]))
-			player_model:setScale(0.1, 1, 0.6)
+			player_model:setScale(1, 0.6, 0.9)
 			player_model:draw()
     end
   end
