@@ -7,7 +7,7 @@ local size = loex.chunk.size
 local lg = love.graphics
 
 local floor = math.floor
-local min = math.min
+local min, max, abs = math.min, math.max, math.abs
 
 local CEILING = 10
 
@@ -199,9 +199,11 @@ function gamescreen.update(g, dt)
   -- player movement
   local keyboard = love.keyboard
   local speed, jumpforce = 5, 12
+  local airfriction = 10
   local dirx, diry, dirz = g3d.camera.getLookVector()
   local move = { x = 0, y = 0, z = 0 }
   local p = self.player
+  local iskeydown = keyboard.isDown("w") or keyboard.isDown("a") or keyboard.isDown("s") or keyboard.isDown("d")
 
   if keyboard.isDown("w") then
     move.x = move.x + dirx
@@ -221,10 +223,28 @@ function gamescreen.update(g, dt)
     move.y = move.y - dirx
   end
 
-  p.vx, p.vy, _ = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(move.x, move.y, move.z))
+  function sign(x)
+     if x > 0 then return 1 elseif x == 0 then return 0 else return -1 end
+  end
+
+  if iskeydown then
+     local mx, my, mz = g3d.vectors.scalarMultiply(speed, g3d.vectors.normalize(move.x, move.y, move.z))
+     if abs(p.vx) < abs(mx) or sign(p.vx) ~= sign(mx) then p.vx = mx end
+     if abs(p.vy) < abs(my) or sign(p.vy) ~= sign(my) then p.vy = my end
+  end
+
   p.vz = p.vz - self.gravity * dt
 
   local onground = physics.moveandcollide(g.world, p, p.box, dt)
+  if (p.vx ~= 0 or p.vy ~= 0) then
+     local friction = airfriction
+     if onground then friction = airfriction * 2 end
+
+     local oldmag = math.sqrt(p.vx^2 + p.vy^2)
+     local newmag = max(0, oldmag - friction * dt)
+     p.vx, p.vy, _ = g3d.vectors.scalarMultiply(newmag/oldmag, p.vx, p.vy, p.vz)
+  end
+
   if onground and (move.x ~= 0 or move.y ~= 0) then
     if not p.ssfootsteps:isPlaying() then
       p.ssfootsteps:queue(self.footstep_sounds[math.random(1, #self.footstep_sounds)])
