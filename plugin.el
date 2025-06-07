@@ -61,15 +61,35 @@
       (tabulated-list-print))
     (display-buffer buf)))
 
+(defun my-custom-save-handler ()
+  (let ((content (buffer-string)))
+    ;;(message "Intercepted save for: %s\nContent:\n%s" filename content)
+    ;; You could save to a database, file, API, etc.
+    (command-editfunction function-name function-args content)
+
+    (set-buffer-modified-p nil)  ;; mark as clean
+    t))
+
 (defun voex-edit-function (name)
   (let ((function (command-getfunction name))
 	(buf (get-buffer-create (format "Voex function: %s" name))))
+
     (with-current-buffer buf
       (erase-buffer)
       (insert (plist-get function :body))
-      (lua-mode)  ;; enable lua-mode
-      (set-buffer-modified-p nil)  ;; mark buffer as unmodified
-      (goto-char (point-min)))
+      (setq buffer-file-name (format "/tmp/%s" name))
+      (lua-mode) ;; enable lua-mode
+;;      (set-visited-file-modtime)
+      (set-buffer-modified-p nil) ;; mark buffer as unmodified
+
+      (goto-char (point-min))
+
+      (setq-local function-name name)
+      (setq-local function-args (plist-get function :args))
+      ;;(setq-local buffer-file-name nil)
+      (setq-local write-contents-functions (list #'my-custom-save-handler))
+      )
+
     (switch-to-buffer buf)))
 
 (defun my-show-list-on-click ()
