@@ -2,6 +2,9 @@ package.path = package.path .. ";?/init.lua"
 require("common")
 inspect = require("common.lib.inspect")
 
+local luaparser = require("common.lib.lua-parser.lua-parser.parser")
+local luaparserpp = require("common.lib.lua-parser.lua-parser.pp")
+
 CHANNEL_ONE = 0
 CHANNEL_CHUNKS = 1
 CHANNEL_EVENTS = 3
@@ -9,7 +12,7 @@ CHANNEL_UPDATES = 4
 
 local state = {}
 local impl = {}
-local game = {}
+voex = {}
 
 local ch1, ch2
 
@@ -38,18 +41,31 @@ function build_arglist(args)
    end
 end
 
-function rebuildfunction(name)
-   local f = state[name]
-   local newf, err = loadstring(build_arglist(f.args).."\n"..f.body)
-   if err then
-      io.stderr:write(err.."\n")
-      impl[name] = function() error("Syntax error: "..err) end
-   else
-      impl[name] = newf
+function trim(s)
+  return s:match("^%s*(.-)%s*$")
+end
+
+function rebuildfunction(name, isnew)
+   local global = state[name]
+   if not isnew and trim(global.body) == "" then
+      state[name] = nil
+      voex[name] = nil
+      return
    end
 
-   if game[name] == nil then
-      game[name] = function(...) return impl[name](...) end
+   local body, err = loadstring("return "..global.body)
+   if err then
+      io.stderr:write(err.."\n")
+      return
+   end
+
+   voex[name] = body()
+end
+
+function initfunction(name)
+   if state[name] == nil then
+      state[name] = { type="function", args={}, body="" }
+      rebuildfunction(name, true)
    end
 end
 
@@ -58,12 +74,12 @@ function commands.list(path)
 end
 
 function commands.addfunction(name)
-   state[name] = { type="function", args={}, body="" }
-   rebuildfunction(name)
+   initfunction(name)
    return true
 end
 
 function commands.editfunction(name, args, body)
+   initfunction(name)
    state[name].args = args
    state[name].body = body
    rebuildfunction(name)
@@ -91,8 +107,8 @@ function love.load(args)
 end
 
 function love.update(dt)
-   if game.sayhi then
-      game.sayhi(1, 3, 2)
+   if voex.sayhi then
+      voex.sayhi(1, 3, 2)
    end
 end
 

@@ -48,6 +48,7 @@
 
 (defun voex-show-functions ()
   (interactive)
+  (my-jsonrpc-start)
   (let ((buf (get-buffer-create "*Voex Functions*")))
     (with-current-buffer buf
       (my-table-mode)
@@ -61,16 +62,30 @@
       (tabulated-list-print))
     (display-buffer buf)))
 
+(defun voex-add (name)
+  (interactive "sVoex add name: ")
+  (my-jsonrpc-start)
+  (command-addfunction name)
+  (voex-edit-function name))
+
 (defun my-custom-save-handler ()
   (let ((content (buffer-string)))
     ;;(message "Intercepted save for: %s\nContent:\n%s" filename content)
     ;; You could save to a database, file, API, etc.
     (command-editfunction function-name function-args content)
 
-    (set-buffer-modified-p nil)  ;; mark as clean
+    (set-buffer-modified-p nil)	;; mark as clean
     t))
 
+(defun voex-edit ()
+  (interactive)
+  (let* ((list (command-list ""))
+	 (list (cl-loop for (name _) on list by 'cddr collect (substring (symbol-name name) 1)))
+	 (choice (completing-read "Choose an option: " list)))
+    (voex-edit-function choice)))
+
 (defun voex-edit-function (name)
+  (my-jsonrpc-start)
   (let* ((function (command-getfunction name))
 	 (args (plist-get function :args))
 	 (buf (get-buffer-create (format "Voex function: %s" name))))
@@ -79,7 +94,7 @@
       (erase-buffer)
       (insert (plist-get function :body))
       (setq buffer-file-name "/dev/null")
-      (lua-mode)		  ;; enable lua-mode
+      (voex-mode)
       (header-line-indent-mode 1)
       ;;      (set-visited-file-modtime)
       (set-buffer-modified-p nil) ;; mark buffer as unmodified
@@ -90,6 +105,7 @@
       (setq-local function-name name)
       (setq-local function-args args)
       (setq-local header-line-format '(:eval (format "%s %s" header-line-indent function-name)))
+      (setq-local mode-line-format nil)
       (setq-local write-contents-functions (list #'my-custom-save-handler))
       )
 
@@ -102,3 +118,9 @@
     (if id
 	(voex-edit-function id)
       (message "No entry at point."))))
+
+
+(define-derived-mode voex-mode lua-mode "Voex"
+  (evil-local-set-key 'normal (kbd "<leader>ff") 'voex-edit)
+  (evil-local-set-key 'normal (kbd "<leader>n") 'voex-new-edit)
+  )
