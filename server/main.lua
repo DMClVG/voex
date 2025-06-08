@@ -41,8 +41,12 @@ end
 function rebuildfunction(name)
    local f = state[name]
    local newf, err = loadstring(build_arglist(f.args).."\n"..f.body)
-   if err then error(err) end
-   impl[name] = newf
+   if err then
+      io.stderr:write(err.."\n")
+      impl[name] = function() error("Syntax error: "..err) end
+   else
+      impl[name] = newf
+   end
 
    if game[name] == nil then
       game[name] = function(...) return impl[name](...) end
