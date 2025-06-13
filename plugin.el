@@ -84,6 +84,32 @@
 	 (choice (completing-read "Choose an option: " list)))
     (voex-edit-function choice)))
 
+(defun split-below-keep-visible-text ()
+  "Split window below, ensuring current window retains enough height to show all visible lines."
+  (interactive)
+  (let* ((orig-window (selected-window))
+         (orig-height (window-total-height orig-window))
+         ;; Estimate how many lines are visible
+         (visible-lines (count-screen-lines (window-start) (window-end nil t)))
+         ;; Ensure we leave enough height to display all lines + room for mode line
+         (min-needed (max (+ 2 visible-lines) 1))
+         (new-height (- orig-height min-needed)))
+    (if (<= new-height 0)
+        (message "Not enough space to split without hiding text.")
+      (let ((new-window (split-window orig-window (- new-height))))
+        (select-window new-window)))))
+
+
+(defun voex-edit-in-new-window ()
+  (interactive)
+  (let* ((list (command-list ""))
+	 (list (cl-loop for (name _) on list by 'cddr collect (substring (symbol-name name) 1)))
+	 (choice (completing-read "Choose an option: " list)))
+    (split-below-keep-visible-text)
+    ;;(other-window 1)
+    (voex-edit-function choice)))
+
+
 (defun voex-edit-function (name)
   (my-jsonrpc-start)
   (let* ((function (command-getfunction name))
@@ -109,7 +135,7 @@
       (setq-local write-contents-functions (list #'my-custom-save-handler))
       )
 
-    (switch-to-buffer buf)))
+    (pop-to-buffer buf)))
 
 (defun my-show-list-on-click ()
   "Action to take when user presses RET or clicks a row."
@@ -121,6 +147,6 @@
 
 
 (define-derived-mode voex-mode lua-mode "Voex"
-  (evil-local-set-key 'normal (kbd "<leader>ff") 'voex-edit)
-  (evil-local-set-key 'normal (kbd "<leader>n") 'voex-new-edit)
+  (evil-local-set-key 'normal (kbd "<leader>ff") 'voex-edit-in-new-window)
+  ;;(evil-local-set-key 'normal (kbd "<leader>n") 'voex-edit-in-new-window)
   )
