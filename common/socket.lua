@@ -35,6 +35,19 @@ function socket.connect(address)
   return socket.new(enet)
 end
 
+function socket.encode(t)
+  local p
+  if t.bin then
+    local bin = t.bin
+    t.bin = nil
+    p = json.encode(t)
+    p = p .. bin
+  else
+    p = json.encode(t)
+  end
+  return p
+end
+
 -- function socket:broadcast(data, channel, mode, dest)
 --     local dest = dest or self.peers
 --     for _, peer in pairs(dest) do
@@ -42,36 +55,42 @@ end
 --     end
 -- end
 
-local function decode(packet)
-  local bytedata = love.data.newByteData(packet)
-  local data = ffi.cast("uint8_t *", bytedata:getFFIPointer())
-
-  assert(data[0] == 91) -- [
-  local entry = { {}, {} }
-  local entryi = 1
-  local out = {}
-  local headersize = nil
-
-  for i = 1, bytedata:getSize() do
-    local char = string.char(data[i])
-    if char == "]" then
-      headersize = i + 1
-      break
-    elseif char == "=" then
-      entryi = 2
-    elseif char == ";" then
-      out[table.concat(entry[1])] = table.concat(entry[2])
-      entry = { {}, {} }
-      entryi = 1
-    else
-      table.insert(entry[entryi], char)
-    end
-  end
-
-  local binsize = bytedata:getSize() - headersize
-  if binsize ~= 0 then out.bin = love.data.newDataView(bytedata, headersize, binsize) end
-
-  return out
+--local function decode(packet)
+--  local bytedata = love.data.newByteData(packet)
+--  local data = ffi.cast("uint8_t *", bytedata:getFFIPointer())
+--
+--  assert(data[0] == 91) -- [
+--  local entry = { {}, {} }
+--  local entryi = 1
+--  local out = {}
+--  local headersize = nil
+--
+--  for i = 1, bytedata:getSize() do
+--    local char = string.char(data[i])
+--    if char == "]" then
+--      headersize = i + 1
+--      break
+--    elseif char == "=" then
+--      entryi = 2
+--    elseif char == ";" then
+--      out[table.concat(entry[1])] = table.concat(entry[2])
+--      entry = { {}, {} }
+--      entryi = 1
+--    else
+--      table.insert(entry[entryi], char)
+--    end
+--  end
+--
+--  local binsize = bytedata:getSize() - headersize
+--  if binsize ~= 0 then out.bin = love.data.newDataView(bytedata, headersize, binsize) end
+--
+--  return out
+--end
+--
+function socket.decode(p)
+  local t, idx = json.decode(p)
+  if idx <= #p then t.bin = string.sub(p, idx, #p) end
+  return t
 end
 
 function socket:peerdata(peer) return self.peerdatas[peer:index()] end
@@ -83,7 +102,7 @@ function socket:service()
 
     local success, result = pcall(function()
       if event.type == "receive" then
-        local packet = decode(event.data)
+        local packet = socket.decode(event.data)
         self.onreceive:emit(event.peer, packet)
       elseif event.type == "connect" then
         self.peerdatas[peerid] = {}
