@@ -27,14 +27,7 @@ function love.load(args)
   local socket = loex.socket.connect(address)
   assert(socket)
 
-  local font = love.graphics.newFont(23)
-  love.graphics.setFont(font)
 
-  game = {}
-  game.gravity = 42 -- TODO
-
-  game.socket = socket
-  game.username = username
 
   game.ondraw = loex.signal.new()
   game.onupdate = loex.signal.new()
@@ -44,7 +37,6 @@ function love.load(args)
   game.onresize = loex.signal.new()
   game.onquit = loex.signal.new()
 
-  require("screens.joinscreen").init(game)
 end
 
 function love.update(dt) game.onupdate:emit(game, dt) end

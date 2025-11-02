@@ -155,8 +155,8 @@ function player.update(g, dt)
     -- generate world
     for i = -gendistance + floor(p.x / size), gendistance + floor(p.x / size) do
       for j = -gendistance + floor(p.y / size), gendistance + floor(p.y / size) do
-        for k = 0, overworld.columnheight - 1 do
-          if not world:chunk(loex.hash.spatial(i, j, k)) then
+        for k = 0, chunk.height - 1 do
+          if not world:chunk(loex.hash.spatial(i, j)) then
             local c = overworld:generate(genstate, i, j, k)
             world:insertchunk(c)
           end
