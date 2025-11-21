@@ -2,7 +2,7 @@ local client = require("client")
 local server = require("server")
 local common = require("common")
 
-local clientgame = {
+local game = {
   ondraw = common.signal.new(),
   onupdate = common.signal.new(),
   onmousemoved = common.signal.new(),
@@ -11,14 +11,9 @@ local clientgame = {
   onresize = common.signal.new(),
   onquit = common.signal.new(),
 }
-local servergame = {
-  onupdate = common.signal.new(),
-  onquit = common.signal.new(),
-}
 
 function love.load(args)
-   clientgame.args = args
-   servergame.args = args
+   game.args = args
 
    local mocksocketA = {
       onconnect = common.signal.new(),
@@ -46,39 +41,37 @@ function love.load(args)
    function peerA:index() return 1 end
    function peerB:index() return 1 end
 
-   client.init(clientgame, mocksocketA, "Jenny")
-   server.init(servergame, mocksocketB)
+   client.init(game, mocksocketA, "Jenny")
+   server.init(game, mocksocketB)
 
    mocksocketA.onconnect:emit(peerB)
    mocksocketB.onconnect:emit(peerA)
 end
 
 function love.update(dt)
-   clientgame.onupdate:emit(clientgame, dt)
-   servergame.onupdate:emit(servergame, dt)
+   game.onupdate:emit(game, dt)
 end
 
 function love.draw()
-   clientgame.ondraw:emit(clientgame)
+   game.ondraw:emit(game)
 end
 
 function love.mousepressed(x, y, button, istouch, presses)
-   clientgame.onmousepressed:emit(clientgame, x, y, button, istouch, presses)
+   game.onmousepressed:emit(game, x, y, button, istouch, presses)
 end
 
 function love.mousemoved(x, y, dx, dy, istouch)
-   clientgame.onmousemoved:emit(clientgame, x, y, dx, dy, istouch)
+   game.onmousemoved:emit(game, x, y, dx, dy, istouch)
 end
 
 function love.keypressed(k, scancode, isrepeat)
-   clientgame.onkeypressed:emit(clientgame, k, scancode, isrepeat)
+   game.onkeypressed:emit(game, k, scancode, isrepeat)
 end
 
 function love.resize(w, h)
-   clientgame.onresize:emit(clientgame, w, h)
+   game.onresize:emit(game, w, h)
 end
 
 function love.quit()
-   clientgame.onquit:emit(clientgame)
-   servergame.onquit:emit(servergame)
+   game.onquit:emit(game)
 end

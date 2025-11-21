@@ -6,24 +6,27 @@ local floor = math.floor
 local tiles = loex.tiles
 local size = loex.chunk.size
 
-function server.init(g, socket)
-  g.socket = socket
+function server.init(game, socket)
+  local server = {}
+  server.socket = socket
 
-  g.world = loex.world.new()
-  g.world.onentityinserted:catch(server.world_onentityinserted, g)
-  g.world.onentityremoved:catch(server.world_onentityremoved, g)
+  server.world = loex.world.new()
+  server.world.onentityinserted:catch(server.world_onentityinserted, g)
+  server.world.onentityremoved:catch(server.world_onentityremoved, g)
 
-  g.genstate = gen.state.new(overworld.layers, 43242)
+  server.genstate = gen.state.new(overworld.layers, 43242)
 
-  g.gravity = 42
+  server.gravity = 42
 
-  g.onupdate:catch(sever.update)
-  g.onquit:catch(sever.quit)
+  game.onupdate:catch(sever.update)
+  game.onquit:catch(sever.quit)
 
   require("server.services.connection_manager").init(g)
   require("server.services.player").init(g)
   require("server.services.sync").init(g)
   require("common.services.snowball").init(g)
+
+  game.server = server
 end
 
 function server.update(g, dt)
