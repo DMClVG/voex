@@ -1,9 +1,12 @@
-local packets = require("packets")
-local quad = require("quad")
+local packets = require("client.packets")
+local quad = require("client.quad")
 
-local physics = loex.physics
-local socket = loex.socket
-local size = loex.chunk.size
+local physics = require("common.physics")
+local socket = require("common.socket")
+local size = require("common.chunk").size
+local tiles = require("common.tiles")
+local utils = require("common.utils")
+local lume = require("common.lib.lume")
 local lg = love.graphics
 
 local floor = math.floor
@@ -13,11 +16,13 @@ local CEILING = 10
 
 local gamescreen = {}
 
-function gamescreen.init(g, player)
-  g.gamescreen = {
+function gamescreen.init(app, master)
+  local player = { vx = 0, vy = 0, vz = 0, x = 0, y = 0, z = 02}
+
+  local self = {
     cursor = {},
-    cursormodel = require("screens.cursormodel"),
-    texturepack = lg.newImage("assets/texturepack.png"),
+    cursormodel = require("client.screens.cursormodel"),
+    texturepack = lg.newImage("client/assets/texturepack.png"),
     threadpool = {},
     threadusage = 0,
     mouse = {},
@@ -28,6 +33,7 @@ function gamescreen.init(g, player)
     frameremeshes = 0,
     synctimer = 0,
     player = player,
+    master= master,
   }
 
   player.box = {
@@ -41,63 +47,64 @@ function gamescreen.init(g, player)
 
   -- load up some threads so that chunk meshing won't block the main thread
   for i = 1, 8 do
-    g.gamescreen.threadpool[i] = love.thread.newThread("screens/chunkremesh.lua")
+    self.threadpool[i] = love.thread.newThread("client/screens/chunkremesh.lua")
   end
 
-  g.gamescreen.player_model = quad(lg.newImage("assets/saul.png"))
-  g.gamescreen.snowball_model = quad(lg.newImage("assets/snowball.png"))
-  g.gamescreen.place_sound = love.sound.newSoundData("assets/audio/place.wav")
-  g.gamescreen.footstep_sounds = {
-    love.sound.newSoundData("assets/audio/footsteps/footstep-01.wav"),
-    love.sound.newSoundData("assets/audio/footsteps/footstep-02.wav"),
-    love.sound.newSoundData("assets/audio/footsteps/footstep-03.wav"),
-    love.sound.newSoundData("assets/audio/footsteps/footstep-04.wav"),
-    love.sound.newSoundData("assets/audio/footsteps/footstep-05.wav"),
-    love.sound.newSoundData("assets/audio/footsteps/footstep-06.wav"),
-    love.sound.newSoundData("assets/audio/footsteps/footstep-07.wav"),
-    love.sound.newSoundData("assets/audio/footsteps/footstep-08.wav"),
-    love.sound.newSoundData("assets/audio/footsteps/footstep-09.wav"),
+  self.player_model = quad(lg.newImage("client/assets/saul.png"))
+  self.snowball_model = quad(lg.newImage("client/assets/snowball.png"))
+  self.place_sound = love.sound.newSoundData("client/assets/audio/place.wav")
+  self.footstep_sounds = {
+    love.sound.newSoundData("client/assets/audio/footsteps/footstep-02.wav"),
+    love.sound.newSoundData("client/assets/audio/footsteps/footstep-03.wav"),
+    love.sound.newSoundData("client/assets/audio/footsteps/footstep-01.wav"),
+    love.sound.newSoundData("client/assets/audio/footsteps/footstep-04.wav"),
+    love.sound.newSoundData("client/assets/audio/footsteps/footstep-05.wav"),
+    love.sound.newSoundData("client/assets/audio/footsteps/footstep-06.wav"),
+    love.sound.newSoundData("client/assets/audio/footsteps/footstep-07.wav"),
+    love.sound.newSoundData("client/assets/audio/footsteps/footstep-08.wav"),
+    love.sound.newSoundData("client/assets/audio/footsteps/footstep-09.wav"),
   }
-
-  g.gamescreen.gravity = 42
 
   lg.setMeshCullMode("back")
   love.audio.setDistanceModel("inverseclamped")
 
-  g.ondraw:catch(gamescreen.draw)
-  g.onupdate:catch(gamescreen.update)
-  g.onmousemoved:catch(gamescreen.onmousemoved)
-  --g.onmousepressed:catch(gamescreen.onmousepressed)
-  g.onkeypressed:catch(gamescreen.onkeypressed)
-  g.world.ontilemodified:catch(gamescreen.ontilemodified, g)
-  g.world.onentityinserted:catch(gamescreen.onentityinserted, g)
-  g.world.onentityremoved:catch(gamescreen.onentityremoved, g)
-  g.world.onchunkinserted:catch(gamescreen.onchunkinserted, g)
-  g.world.onchunkremoved:catch(gamescreen.onchunkremoved, g)
+  self.signals = {
+    app.ondraw:catch(gamescreen.draw, self),
+    app.onupdate:catch(gamescreen.update, self),
+    app.onmousemoved:catch(gamescreen.onmousemoved, self),
+  --  g.onmousepressed:catch(gamescreen.onmousepressed, self),
+  }
+  self.world = require("common.world").new()
+  self.world.ontilemodified:catch(gamescreen.ontilemodified, self)
+  self.world.onentityinserted:catch(gamescreen.onentityinserted, self)
+  self.world.onentityremoved:catch(gamescreen.onentityremoved, self)
+  self.world.onchunkinserted:catch(gamescreen.onchunkinserted, self)
+  self.world.onchunkremoved:catch(gamescreen.onchunkremoved, self)
 
-  require("services.nethandler").init(g)
-  require("services.player").init(g)
-  require("common.services.snowball").init(g)
+  self.gravity = 42
+
+-- require("services.nethandler").init(g)
+--  require("services.player").init(g)
+--  require("common.services.snowball").init(g)
 end
 
-function gamescreen.onchunkinserted(g, chunk)
+function gamescreen:onchunkinserted(chunk)
   local x, y, z = chunk.x, chunk.y, chunk.z
-  gamescreen.requestremesh(g, chunk)
+  self:requestremesh(chunk)
 end
 
-function gamescreen.onchunkremoved(g, chunk) end
+function gamescreen:onchunkremoved(chunk) end
 
-function gamescreen.onentityinserted(g, entity) print(entity.id .. " added") end
+function gamescreen:onentityinserted(entity) print(entity.id .. " added") end
 
-function gamescreen.onentityremoved(g, entity) print(entity.id .. " removed") end
+function gamescreen:onentityremoved(entity) print(entity.id .. " removed") end
 
-function gamescreen.onresize(g, w, h)
+function gamescreen:onresize(g, w, h)
   g3d.camera.aspectRatio = w / h
   g3d.camera.updateProjectionMatrix()
 end
 
-function gamescreen.update(g, dt)
-  local self = g.gamescreen
+function gamescreen:update(g, dt)
   local mouse = self.mouse
   local threadpool = self.threadpool
 
@@ -110,7 +117,7 @@ function gamescreen.update(g, dt)
   -- handle place and break timeouts
   for key, places in pairs(self.placequeue) do
     if love.timer.getTime() - places.timestamp > lagdelay then
-      g.world:tile(places.x, places.y, places.z, loex.tiles.air.id)
+      g.world:tile(places.x, places.y, places.z, tiles.air.id)
       self.placequeue[key] = nil
     end
   end
@@ -132,7 +139,7 @@ function gamescreen.update(g, dt)
   while self.remeshchannel:peek() do
     local data = self.remeshchannel:pop()
     if not data then break end
-    local c = g.world:chunk(loex.hash.spatial(data.cx, data.cy, data.cz))
+    local c = g.world:chunk(hash.spatial(data.cx, data.cy, data.cz))
     if c.model then c.model.mesh:release() end
     c.model = nil
     c.inremesh = false
@@ -159,7 +166,7 @@ function gamescreen.update(g, dt)
         -- so that voxels on the edges can face themselves properly
         local n1, n2, n3, n4, n5, n6 = g.world:neighbourhood(c.x, c.y, c.z)
         if
-          not (n1 and n2 and n3 and n4 and n5 and n6) or not g.world:chunk(loex.hash.spatial(c.x, c.y, CEILING - 1))
+          not (n1 and n2 and n3 and n4 and n5 and n6) or not g.world:chunk(hash.spatial(c.x, c.y, CEILING - 1))
         then
           offi = offi + 1
           break
@@ -174,7 +181,7 @@ function gamescreen.update(g, dt)
           c.z,
           c.data,
           size,
-          loex.tiles.id,
+          tiles.id,
           n1,
           n2,
           n3,
@@ -235,7 +242,7 @@ function gamescreen.update(g, dt)
 
   p.vz = p.vz - self.gravity * dt
 
-  local onground = physics.moveandcollide(g.world, p, p.box, dt)
+  local onground = physics.moveandcollide(self.world, p, p.box, dt)
   if (p.vx ~= 0 or p.vy ~= 0) then
      local friction = airfriction
      if onground then friction = airfriction * 2 end
@@ -309,10 +316,10 @@ function gamescreen.update(g, dt)
       y = y + dy * step * (1 + epsilon)
       z = z + dz * step * (1 + epsilon)
 
-      if loex.utils.distance3d(ox, oy, oz, x, y, z, true) > clipdistance * clipdistance or step == 0 then break end
+      if utils.distance3d(ox, oy, oz, x, y, z, true) > clipdistance * clipdistance or step == 0 then break end
 
       local tx, ty, tz = floor(x), floor(y), floor(z)
-      local tile = g.world:tile(tx, ty, tz)
+      local tile = self.world:tile(tx, ty, tz)
       if tile == -1 then break end
       if tile > 0 then
         self.cursor = {}
@@ -324,7 +331,7 @@ function gamescreen.update(g, dt)
     end
   end
 
-  local placetile = loex.tiles.slime.id
+  local placetile = tiles.slime.id
 
   -- left click to break block
   if mouse.leftclick and self.cursor then
@@ -337,7 +344,7 @@ function gamescreen.update(g, dt)
       prev = g.world:tile(x, y, z),
     }
     g.master:send(packets.breaktile(x, y, z), CHANNEL_EVENTS, "reliable")
-    g.world:tile(x, y, z, loex.tiles.air.id)
+    g.world:tile(x, y, z, tiles.air.id)
   end
 
   -- right click to place block
@@ -348,7 +355,7 @@ function gamescreen.update(g, dt)
     translatedplayerbox.x = translatedplayerbox.x + p.x
     translatedplayerbox.y = translatedplayerbox.y + p.y
     translatedplayerbox.z = translatedplayerbox.z + p.z
-    if not loex.utils.intersectbb(cube, translatedplayerbox) then
+    if not utils.intersectbb(cube, translatedplayerbox) then
       self.placequeue[("%d/%d/%d"):format(x, y, z)] = {
         x = x,
         y = y,
@@ -363,8 +370,7 @@ function gamescreen.update(g, dt)
   end
 end
 
-function gamescreen.play_place_sound(g, x, y, z)
-  local self = g.gamescreen
+function gamescreen:play_place_sound(g, x, y, z)
   local source = love.audio.newSource(self.place_sound)
   source:setPosition(x, y, z)
   source:setAttenuationDistances(0.5, 2000000)
@@ -372,12 +378,11 @@ function gamescreen.play_place_sound(g, x, y, z)
   source:play()
 end
 
-function gamescreen.draw(g)
-  local self = g.gamescreen
+function gamescreen:draw(g)
   lg.clear(lume.color("#4488ff"))
 
   lg.setColor(1, 1, 1)
-  for _, chunk in pairs(g.world.chunks) do
+  for _, chunk in pairs(self.world.chunks) do
     if chunk.model then chunk.model:draw() end
   end
 
@@ -397,11 +402,11 @@ function gamescreen.draw(g)
   lg.rectangle("fill", (lg.getWidth() - cross) / 2, (lg.getHeight() - cross) / 2, cross, cross)
 end
 
-function gamescreen.throw_snowball(g)
+function gamescreen:throw_snowball(g)
   local x, y, z = g3d.camera.position[1], g3d.camera.position[2], g3d.camera.position[3]
   local dx, dy, dz = g3d.camera.getLookVector()
   local force = 30
-  g.master:send(socket.encode {
+  self.master:send(socket.encode {
     type = "snowball_throw",
     x = x,
     y = y,
@@ -410,20 +415,20 @@ function gamescreen.throw_snowball(g)
     vy = dy * force,
     vz = dz * force,
   })
-  g.gamescreen.player.sssnowball_throw:play()
+  self.player.sssnowball_throw:play()
 end
 
-function gamescreen.onmousemoved(g, x, y, dx, dy, istouch) g3d.camera.firstPersonLook(dx, dy) end
+function gamescreen:onmousemoved(g, x, y, dx, dy, istouch) g3d.camera.firstPersonLook(dx, dy) end
 
-function gamescreen.onkeypressed(g, k)
+function gamescreen:onkeypressed(g, k)
   if k == "q" then
     print("thrown snowball")
     gamescreen.throw_snowball(g)
   end
 end
 
-function gamescreen.ontilemodified(g, x, y, z, _)
-  local spatial = loex.hash.spatial
+function gamescreen:ontilemodified(g, x, y, z, _)
+  local spatial = hash.spatial
   local chunk = g.world:chunk(spatial(floor(x / size), floor(y / size), floor(z / size)))
   assert(chunk)
 
@@ -431,18 +436,17 @@ function gamescreen.ontilemodified(g, x, y, z, _)
   local cx, cy, cz = chunk.x, chunk.y, chunk.z
   local world = g.world
 
-  if tx >= size - 1 then gamescreen.requestremesh(g, world:chunk(spatial(cx + 1, cy, cz)), true) end
-  if tx <= 0 then gamescreen.requestremesh(g, world:chunk(spatial(cx - 1, cy, cz)), true) end
-  if ty >= size - 1 then gamescreen.requestremesh(g, world:chunk(spatial(cx, cy + 1, cz)), true) end
-  if ty <= 0 then gamescreen.requestremesh(g, world:chunk(spatial(cx, cy - 1, cz)), true) end
+  if tx >= size - 1 then self:requestremesh(g, world:chunk(spatial(cx + 1, cy, cz)), true) end
+  if tx <= 0 then self:requestremesh(g, world:chunk(spatial(cx - 1, cy, cz)), true) end
+  if ty >= size - 1 then self:requestremesh(g, world:chunk(spatial(cx, cy + 1, cz)), true) end
+  if ty <= 0 then self:requestremesh(g, world:chunk(spatial(cx, cy - 1, cz)), true) end
   if tz >= size - 1 then gamescreen.requestremesh(g, world:chunk(spatial(cx, cy, cz + 1)), true) end
-  if tz <= 0 then gamescreen.requestremesh(g, world:chunk(spatial(cx, cy, cz - 1)), true) end
+  if tz <= 0 then self:requestremesh(g, world:chunk(spatial(cx, cy, cz - 1)), true) end
 
   gamescreen.requestremesh(g, chunk, true)
 end
 
-function gamescreen.requestremesh(g, c, priority)
-  local self = g.gamescreen
+function gamescreen:requestremesh(g, c, priority)
   -- don't add a nil chunk or a chunk that's already in the queue
   local world = g.world
   if not c or c.inremesh or not c.data then return end

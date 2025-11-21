@@ -1,5 +1,5 @@
 local packets = {}
-local encode = loex.socket.encode
+local encode = require("common.socket").encode
 
 function packets.place(x, y, z, t) return encode { type = "place", x = x, y = y, z = z, t = t } end
 

@@ -1,6 +1,6 @@
 local layer = {}
 local floor, insert = math.floor, table.insert
-local spatialhash = loex.hash.spatial
+local spatialhash = require("common.hash").spatial
 
 function layer.new(w, h)
   local new = {}

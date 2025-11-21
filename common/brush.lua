@@ -1,8 +1,8 @@
 local brush = {}
 local insert = table.insert
-local size = loex.chunk.size
+local size = require("common.chunk").size
 local floor = math.floor
-local spatialhash = loex.hash.spatial
+local spatialhash = require("common.hash").spatial
 
 function brush.bounded(world, x, y, z, w, h, d)
   local new = {}

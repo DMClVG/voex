@@ -1,51 +1,26 @@
+--- @module main
+
 local client = require("client")
-local server = require("server")
-local common = require("common")
+local signal = require("common.signal")
+
 
 local game = {
-  ondraw = common.signal.new(),
-  onupdate = common.signal.new(),
-  onmousemoved = common.signal.new(),
-  onmousepressed = common.signal.new(),
-  onkeypressed = common.signal.new(),
-  onresize = common.signal.new(),
-  onquit = common.signal.new(),
+  ondraw = signal.new(),
+  onupdate = signal.new(),
+  onmousemoved = signal.new(),
+  onmousepressed = signal.new(),
+  onkeypressed = signal.new(),
+  onresize = signal.new(),
+  onquit = signal.new(),
+  version = "dev",
 }
+
+inspect = require("inspect")
 
 function love.load(args)
    game.args = args
 
-   local mocksocketA = {
-      onconnect = common.signal.new(),
-      ondisconnect = common.signal.new(),
-      onreceive = common.signal.new(),
-      peerdatas = {},
-   }
-   local mocksocketB = {
-      onconnect = common.signal.new(),
-      ondisconnect = common.signal.new(),
-      onreceive = common.signal.new(),
-      peerdatas = {},
-   }
-
-   function mocksocketA:peerdata(peer) return self.peerdatas[peer] end
-   function mocksocketB:peerdata(peer) return self.peerdatas[peer] end
-
-   local peerA, peerB = {}, {}
-   function peerA:send(string)
-      mocksocketB.onreceive:emit(peerB, string)
-   end
-   function peerB:send(string)
-      mocksocketA.onreceive:emit(peerA, string)
-   end
-   function peerA:index() return 1 end
-   function peerB:index() return 1 end
-
-   client.init(game, mocksocketA, "Jenny")
-   server.init(game, mocksocketB)
-
-   mocksocketA.onconnect:emit(peerB)
-   mocksocketB.onconnect:emit(peerA)
+   client.init(game)
 end
 
 function love.update(dt)

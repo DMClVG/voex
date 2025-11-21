@@ -1,8 +1,8 @@
 local gen = {}
 
-gen.strategy = require("gen.strategy")
-gen.layer = require("gen.layer")
-gen.predicates = require("gen.predicates")
-gen.state = require("gen.state")
+gen.strategy = require("server.gen.strategy")
+gen.layer = require("server.gen.layer")
+gen.predicates = require("server.gen.predicates")
+gen.state = require("server.gen.state")
 
 return gen

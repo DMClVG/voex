@@ -1,15 +1,12 @@
 local client = {}
 
-function client.init(game, socket, username)
-  game.gravity = 42 -- TODO
+g3d = require("client/lib/g3d")
 
-  game.socket = socket
-  game.username = username
-
+function client.init(app)
   local font = love.graphics.newFont(23)
   love.graphics.setFont(font)
 
-  require("screens.joinscreen").init(game)
+  require("client.screens.titlescreen").init(app)
 end
 
 return client

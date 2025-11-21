@@ -1,6 +1,11 @@
 local packets = {}
-local encode = loex.socket.encode
+local encode = require("common.socket").encode
 
+--- create a packet of type
+--- @param x the x coord
+--- @param y the y coord
+--- @param z the z coord
+--- @return jsonstring
 function packets.joinsuccess(id, x, y, z)
   return encode {
     type = "joinsuccess",

@@ -1,9 +1,10 @@
 local physics = {}
 
-local tiles = loex.tiles
+local tiles = require("common.tiles")
+local lume = require("common.lib.lume")
 local cube = { w = 0.5, h = 0.5, d = 0.5, x = 0, y = 0, z = 0 }
 local epsilonx, epsilony, epsilonz = 0.0045, 0.002, 0.005
-local utils = loex.utils
+local utils = require("common.utils")
 local floor, min, max = math.floor, math.min, math.max
 local expandb, iterb, intersectbb = utils.expandb, utils.iterb, utils.intersectbb
 

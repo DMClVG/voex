@@ -1,4 +1,4 @@
-local physics = loex.physics
+local physics = require("common.physics")
 local lg = love.graphics
 
 local snowball = {}

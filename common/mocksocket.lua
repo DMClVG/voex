@@ -8,28 +8,13 @@ function mocksocket.new()
    local a, b = {}, {}
    a.other = b
    b.other = a
-  new.enet = enet
-  new.peerdatas = {}
+  a.enet = enet
+  b.peerdatas = {}
 
   setmetatable(a, mocksocket)
   setmetatable(b, mocksocket)
 
-  Return a, b
-end
-
-function mocksocket.host(port, max_peers)
-  local enet, err = enet.host_create(("localhost:%d"):format(port), max_peers, CHANNEL_COUNT)
-  if not enet then error(err) end
-  enet:compress_with_range_coder()
-  return mocksocket.new(enet)
-end
-
-function mocksocket.connect(address)
-  local enet, err = enet.host_create(nil, 1)
-  if not enet then error(err) end
-  enet:compress_with_range_coder()
-  enet:connect(address, CHANNEL_COUNT)
-  return mocksocket.new(enet)
+  return a, b
 end
 
 function mocksocket.encode(t)
@@ -82,3 +67,5 @@ end
 function mocksocket:disconnect()
 
 end
+
+return mocksocket

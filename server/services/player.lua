@@ -1,10 +1,9 @@
-local overworld = require("gen.overworld")
-local packets = require("packets")
+local overworld = require("server.gen.overworld")
 local snowball = require("common.services.snowball")
+local packets = require("server.packets")
 
-local socket = loex.socket
-local size = loex.chunk.size
-local entity = loex.entity
+local socket = require("common.socket")
+local size = require("common.chunk").size
 local floor = math.floor
 
 local player = {}

@@ -1,15 +1,17 @@
-local gen = require("gen")
-local chunk = loex.chunk
+local lume = require("common.lib.lume")
+local gen = require("server.gen")
+local chunk = require("common.chunk")
 local size = chunk.size
 local floor = math.floor
-local tiles = loex.tiles
+local tiles = require("common.tiles")
 local ffi = require("ffi")
-local spatialhash = loex.hash.spatial
-local boundedbrush = loex.brush.bounded
+local spatialhash = require("common.hash").spatial
+local boundedbrush = require("common.brush").bounded
 local concat = lume.concat
 local insert = table.insert
-local distance3d = loex.utils.distance3d
+local distance3d = require("common.utils").distance3d
 local max, min = math.max, math.min
+
 
 local pred = gen.predicates
 local layer_terrain = gen.layer.new(size, size)

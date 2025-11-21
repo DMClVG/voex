@@ -1,5 +1,5 @@
-local player = require("services.player")
-local packets = require("packets")
+local player = require("server.services.player")
+local packets = require("server.packets")
 
 local connection_manager = {}
 

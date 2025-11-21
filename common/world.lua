@@ -1,7 +1,8 @@
-local chunk = loex.chunk
+local chunk = require("common.chunk")
 local size = chunk.size
 local floor = math.floor
-local spatialhash = loex.hash.spatial
+local spatialhash = require("common.hash").spatial
+local signal = require("common.signal")
 local insert = table.insert
 local world = {}
 world.__index = world
@@ -13,11 +14,11 @@ function world.new()
   new.entities = {}
   new.tagtables = {}
 
-  new.ontilemodified = loex.signal.new()
-  new.onentityinserted = loex.signal.new()
-  new.onentityremoved = loex.signal.new()
-  new.onchunkinserted = loex.signal.new()
-  new.onchunkremoved = loex.signal.new()
+  new.ontilemodified = signal.new()
+  new.onentityinserted = signal.new()
+  new.onentityremoved = signal.new()
+  new.onchunkinserted = signal.new()
+  new.onchunkremoved = signal.new()
 
   setmetatable(new, world)
 
