@@ -1,5 +1,6 @@
 local ffi = require("ffi")
 local enet = require("enet")
+local json = require("common.lib.json")
 
 local socket = {}
 socket.__index = socket

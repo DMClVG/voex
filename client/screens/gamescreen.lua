@@ -277,7 +277,7 @@ function gamescreen:update(g, dt)
   local syncinterval = 1 / 20
   self.synctimer = self.synctimer + dt
   if self.synctimer >= syncinterval then
-    g.master:send(packets.move(p.x, p.y, p.z), CHANNEL_UPDATES, "unreliable")
+    self.master:send(packets.move(p.x, p.y, p.z), CHANNEL_UPDATES, "unreliable")
     self.synctimer = 0
   end
 

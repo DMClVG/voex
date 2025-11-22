@@ -4,6 +4,7 @@ local titlescreen = {}
 titlescreen.__index = titlescreen
 
 local lg = love.graphics
+local signal = require("common.signal")
 
 function titlescreen.init(app)
     local self = {}
@@ -20,9 +21,33 @@ function titlescreen:start_game(app)
   for _, signal in ipairs(self.signals) do
     signal:destroy()
   end
-  local a, b = require("common.mocksocket").new()
-  require("client.screens.gamescreen").init(app, b)
-  require("server").init(app, a)
+  local socket_client = {
+    onconnect = signal.new(),
+    onreceive = signal.new(),
+    ondisconnect = signal.new(),
+    peerdata = {}
+  }
+  local socket_server = {
+    onconnect = signal.new(),
+    onreceive = signal.new(),
+    ondisconnect = signal.new(),
+    peerdata = {}
+  }
+  local peer_client = {}
+  local peer_server = {}
+  function peer_client:index() return 1 end
+  function peer_server:index() return 1 end
+  
+  function peer_client:send(packet)
+    socket_server.onreceive:emit(socket_server, peer_server, packet)
+  end
+  function peer_server:send(packet)
+    socket_client.onreceive:emit(socket_client, peer_client, packet)
+  end
+  
+  require("client.screens.gamescreen").init(app, peer_client)
+  require("server").init(app, socket_server)
+  socket_server.onconnect:emit(socket_server, peer_server)
 end
 
 function titlescreen:draw(app)

@@ -1,19 +1,19 @@
-local ffi = require("ffi")
-local enet = require("enet")
-
 local mocksocket = {}
-mocksocket.__index = mocksocket
 
-function mocksocket.new()
-   local a, b = {}, {}
-   a.other = b
-   b.other = a
-  a.enet = enet
-  b.peerdatas = {}
+local function new_socket()
+  return {
+      onconnect = signal.new(),
+      onreceive = signal.new(),
+      ondisconnect = signal.new(),
+      peerdatas = {},
+      peerdata = function(self, peer) return self.peerdatas[peer:index()] end
+  }
+end
 
-  setmetatable(a, mocksocket)
-  setmetatable(b, mocksocket)
-
+function mocksocket.new_pair()
+  local client, server = new_socket(), new_socket()
+  local peer_server = mockpeer.new(client)
+  local peer_client =  {}
   return a, b
 end
 
@@ -37,35 +37,6 @@ function mocksocket.decode(p)
   return t
 end
 
-function mocksocket:peerdata(peer) return self.peerdatas[peer:index()] end
-
-function mocksocket:service()
-  local event = self.enet:service()
-  while event do
-    local peerid = event.peer:index()
-
-    local success, result = pcall(function()
-      if event.type == "receive" then
-        local packet = mocksocket.decode(event.data)
-        self.onreceive:emit(event.peer, packet)
-      elseif event.type == "connect" then
-        self.peerdatas[peerid] = {}
-        self.onconnect:emit(event.peer)
-      elseif event.type == "disconnect" then
-        self.ondisconnect:emit(event.peer)
-        self.peerdatas[peerid] = nil
-      end
-    end)
-    if not success then
-      error(result) -- TODO: send error and disconnect peer
-    end
-
-    event = self.enet:service()
-  end
-end
-
-function mocksocket:disconnect()
-
-end
+function 
 
 return mocksocket
