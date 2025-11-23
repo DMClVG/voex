@@ -22,10 +22,10 @@ function server.init(app, socket)
   app.onupdate:catch(server.update)
   app.onquit:catch(server.quit)
 
-  --require("server.services.connection_manager").init(self)
-  --require("server.services.player").init(self)
-  --require("server.services.sync").init(self)
-  --require("common.services.snowball").init(self)
+  require("server.services.connection_manager").init(self)
+  require("server.services.player").init(app)
+  require("server.services.sync").init(self)
+  require("common.services.snowball").init(self)
 end
 
 function server:update(g, dt)
