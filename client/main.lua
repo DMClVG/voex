@@ -16,6 +16,7 @@ CHANNEL_UPDATES = 2
 local game
 
 function love.load(args)
+  love.window.setVSync(0)
   if #args < 3 then
     print("Usage: client [address] [port] [username]")
     love.event.quit(-1)
@@ -27,8 +28,9 @@ function love.load(args)
   local socket = loex.socket.connect(address)
 	assert(socket)
 
-  local font = love.graphics.newFont(23)
-  love.graphics.setFont(font)
+        local font = love.graphics.newFont(23)
+        
+        love.graphics.setFont(font)
 
 	game = {}
 	game.gravity = 42 -- TODO
@@ -51,8 +53,14 @@ function love.update(dt)
 	game.onupdate:emit(game, dt)
 end
 
+local start = love.timer.getTime()
 function love.draw()
-	game.ondraw:emit(game)
+   local elapsed = love.timer.getTime() - start
+   print(("took %.3f ms"):format(elapsed * 1000))
+   
+   
+   game.ondraw:emit(game)
+   start = love.timer.getTime()
 end
 
 function love.mousepressed(x,y,button,istouch,presses)
