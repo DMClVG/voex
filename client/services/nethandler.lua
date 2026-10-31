@@ -1,14 +1,12 @@
 local nethandler = {}
 
-function nethandler.init(g)
-	g.socket.onreceive:catch(nethandler.onreceive, g)
-end
+function nethandler.init(g) g.socket.onreceive:catch(nethandler.onreceive, g) end
 
 function nethandler.onreceive(g, peer, d)
-	if d.type == "joinsuccess" then return end -- FIXME
+  if d.type == "joinsuccess" then return end -- FIXME
 
-	print("received " .. d.type)
-	nethandler[d.type](g, d)
+  print("received " .. d.type)
+  nethandler[d.type](g, d)
 end
 
 function nethandler.broken(g, d)
@@ -19,13 +17,13 @@ function nethandler.broken(g, d)
 end
 
 function nethandler.placed(g, d)
-	local gamescreen = require("screens.gamescreen")
+  local gamescreen = require("screens.gamescreen")
   local x, y, z, t = tonumber(d.x), tonumber(d.y), tonumber(d.z), tonumber(d.t)
   local hash = ("%d/%d/%d"):format(x, y, z)
-  if not g.gamescreen.placequeue[hash] or g.gamescreen.placequeue[hash].t ~= t then 
-		g.world:tile(x, y, z, t) 
-		gamescreen.play_place_sound(g, x, y, z)
-	end
+  if not g.gamescreen.placequeue[hash] or g.gamescreen.placequeue[hash].t ~= t then
+    g.world:tile(x, y, z, t)
+    gamescreen.play_place_sound(g, x, y, z)
+  end
   g.gamescreen.placequeue[hash] = nil
 end
 
@@ -39,20 +37,17 @@ function nethandler.entitymove(g, d)
   entity.z = z
 end
 
-function nethandler.entityadd(g, d)
-end
+function nethandler.entityadd(g, d) end
 
-function nethandler.entityremove(g, d) 
-	g.world:remove(g.world:entity(d.id)) 
-end
+function nethandler.entityremove(g, d) g.world:remove(g.world:entity(d.id)) end
 
 function nethandler.entityremoteset(g, d)
   local entity = g.world:entity(d.id)
-	for k, v in pairs(d.properties) do
-  	if not (entity.id == g.gamescreen.player.id and k:match("[xyz]")) then -- TODO: position correction
-  		entity[k] = v
-		end
-	end
+  for k, v in pairs(d.properties) do
+    if not (entity.id == g.gamescreen.player.id and k:match("[xyz]")) then -- TODO: position correction
+      entity[k] = v
+    end
+  end
 end
 
 function nethandler.chunkadd(g, d)

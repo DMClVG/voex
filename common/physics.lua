@@ -1,19 +1,19 @@
 local physics = {}
 
-local tiles = loex.tiles 
+local tiles = loex.tiles
 local cube = { w = 0.5, h = 0.5, d = 0.5, x = 0, y = 0, z = 0 }
 local epsilonx, epsilony, epsilonz = 0.0045, 0.002, 0.005
 local utils = loex.utils
 local floor, min, max = math.floor, math.min, math.max
 local expandb, iterb, intersectbb = utils.expandb, utils.iterb, utils.intersectbb
 
-function physics.intersect_point_world(world, x, y, z) 
-	local i,j,k = floor(x), floor(y), floor(z) 
-	return world:tile(i, j, k) > 0
+function physics.intersect_point_world(world, x, y, z)
+  local i, j, k = floor(x), floor(y), floor(z)
+  return world:tile(i, j, k) > 0
 end
 
 function physics.moveandcollide(world, e, box, dt)
-	local bounce = 0
+  local bounce = 0
 
   local dx, dy, dz = e.vx * dt, e.vy * dt, e.vz * dt
   local x, y, z = e.x, e.y, e.z
@@ -21,8 +21,8 @@ function physics.moveandcollide(world, e, box, dt)
 
   local onground = false
 
-	-- Z MOVEMENT
-	local collidedz = false
+  -- Z MOVEMENT
+  local collidedz = false
   local boxz = expandb(lume.clone(box), 0, 0, dz)
   boxz.x = boxz.x + x
   boxz.y = boxz.y + y
@@ -37,19 +37,17 @@ function physics.moveandcollide(world, e, box, dt)
         if dz < 0 then
           dz = min(max(dz, (k + 1 + epsilonz) - (z - h)), 0)
           onground = true
-					bounce = (bounce + (tiles.id[t].bounce or 0)) * 0.5
+          bounce = (bounce + (tiles.id[t].bounce or 0)) * 0.5
         else
           dz = max(min(dz, (k - epsilonz) - (z + h)), 0)
-        end 
-				collidedz = true
+        end
+        collidedz = true
       end
     end
   end
-	if collidedz then
-  	e.vz = -e.vz * bounce
-	end
+  if collidedz then e.vz = -e.vz * bounce end
 
-	-- X MOVEMENT
+  -- X MOVEMENT
   local boxx = expandb(lume.clone(box), dx, 0, dz)
   boxx.x = boxx.x + x
   boxx.y = boxx.y + y
@@ -71,7 +69,7 @@ function physics.moveandcollide(world, e, box, dt)
     end
   end
 
-	-- Y MOVEMENT
+  -- Y MOVEMENT
   local boxy = expandb(lume.clone(box), dx, dy, dz)
   boxy.x = boxy.x + x
   boxy.y = boxy.y + y

@@ -36,16 +36,16 @@ function socket.connect(address)
 end
 
 function socket.encode(t)
-	local p
-	if t.bin then
-		local bin = t.bin
-		t.bin = nil
-		p = json.encode(t)
-		p = p .. bin
-	else
-		p = json.encode(t)
-	end
-	return p
+  local p
+  if t.bin then
+    local bin = t.bin
+    t.bin = nil
+    p = json.encode(t)
+    p = p .. bin
+  else
+    p = json.encode(t)
+  end
+  return p
 end
 
 -- function socket:broadcast(data, channel, mode, dest)
@@ -88,11 +88,9 @@ end
 --end
 --
 function socket.decode(p)
-	local t, idx = json.decode(p)
-	if idx <= #p then
-		t.bin = string.sub(p,idx,#p)
-	end
-	return t
+  local t, idx = json.decode(p)
+  if idx <= #p then t.bin = string.sub(p, idx, #p) end
+  return t
 end
 
 function socket:peerdata(peer) return self.peerdatas[peer:index()] end

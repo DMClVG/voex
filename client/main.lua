@@ -26,59 +26,48 @@ function love.load(args)
   local username = args[3]
 
   local socket = loex.socket.connect(address)
-	assert(socket)
+  assert(socket)
 
-        local font = love.graphics.newFont(23)
-        
-        love.graphics.setFont(font)
+  local font = love.graphics.newFont(23)
 
-	game = {}
-	game.gravity = 42 -- TODO
+  love.graphics.setFont(font)
 
-	game.socket = socket
-	game.username = username
+  game = {}
+  game.gravity = 42 -- TODO
 
-	game.ondraw = loex.signal.new()
-	game.onupdate = loex.signal.new()
-	game.onmousemoved = loex.signal.new()
-	game.onmousepressed = loex.signal.new()
-	game.onkeypressed = loex.signal.new()
-	game.onresize = loex.signal.new()
-	game.onquit = loex.signal.new()
+  game.socket = socket
+  game.username = username
 
-	require("screens.joinscreen").init(game)
+  game.ondraw = loex.signal.new()
+  game.onupdate = loex.signal.new()
+  game.onmousemoved = loex.signal.new()
+  game.onmousepressed = loex.signal.new()
+  game.onkeypressed = loex.signal.new()
+  game.onresize = loex.signal.new()
+  game.onquit = loex.signal.new()
+
+  require("screens.joinscreen").init(game)
 end
 
-function love.update(dt)
-	game.onupdate:emit(game, dt)
-end
+function love.update(dt) game.onupdate:emit(game, dt) end
 
 local start = love.timer.getTime()
 function love.draw()
-   local elapsed = love.timer.getTime() - start
-   print(("took %.3f ms"):format(elapsed * 1000))
-   
-   
-   game.ondraw:emit(game)
-   start = love.timer.getTime()
+  local elapsed = love.timer.getTime() - start
+  print(("took %.3f ms"):format(elapsed * 1000))
+
+  game.ondraw:emit(game)
+  start = love.timer.getTime()
 end
 
-function love.mousepressed(x,y,button,istouch,presses)
-	game.onmousepressed:emit(game,x,y,button,istouch,presses)
+function love.mousepressed(x, y, button, istouch, presses)
+  game.onmousepressed:emit(game, x, y, button, istouch, presses)
 end
 
-function love.mousemoved(x, y, dx, dy,istouch)
-	game.onmousemoved:emit(game,x,y,dx,dy,istouch)
-end
+function love.mousemoved(x, y, dx, dy, istouch) game.onmousemoved:emit(game, x, y, dx, dy, istouch) end
 
-function love.keypressed(k,scancode,isrepeat)
-	game.onkeypressed:emit(game, k, scancode, isrepeat)
-end
+function love.keypressed(k, scancode, isrepeat) game.onkeypressed:emit(game, k, scancode, isrepeat) end
 
-function love.resize(w, h)
-	game.onresize:emit(game,w,h)
-end
+function love.resize(w, h) game.onresize:emit(game, w, h) end
 
-function love.quit()
-	game.onquit:emit(game)
-end
+function love.quit() game.onquit:emit(game) end
